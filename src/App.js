@@ -1047,7 +1047,7 @@ function App() {
       )}
 
       <footer className="text-center text-xs text-gray-500 mt-4 py-2">
-        React Card Game Simulation v1.1
+        Online 350 Card Game
       </footer>
     </div>
   );
