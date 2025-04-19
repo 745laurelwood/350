@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 
 // --- Constants ---
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -116,17 +116,17 @@ function App() {
   const [bidPasses, setBidPasses] = useState(0); // Track consecutive passes
   const [trumpSuit, setTrumpSuit] = useState(null);
   const [currentTrick, setCurrentTrick] = useState([]); // Array of {card, playerIndex}
-  const [trickLeaderIndex, setTrickLeaderIndex] = useState(null); // Player who leads the current trick
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(null); // Player whose turn it is to play a card
   const [scores, setScores] = useState({ bidderTeam: 0, oppositionTeam: 0 });
-  const [calledCards, setCalledCards] = useState([]); // Cards called by the bidder to identify partners
   const [selectedPartnerCards, setSelectedPartnerCards] = useState([]); // Cards selected by bidder in UI
   const [bidderTeam, setBidderTeam] = useState([]); // Indices of players in bidder's team
   const [oppositionTeam, setOppositionTeam] = useState([]); // Indices of players in opposition
-  // const [selectedCard, setSelectedCard] = useState(null); // Card selected by current player to play (Handled within handlePlayCard now)
   const [showHands, setShowHands] = useState(false); // Control whether to show all hands (for debugging/demo)
   const [message, setMessage] = useState("Select number of players to start.");
   const [totalHandsPlayed, setTotalHandsPlayed] = useState(0); // Track number of tricks played
+  const [isAutoPlayActive, setIsAutoPlayActive] = useState(false); // State for auto play mode
+  const autoPlayTimeoutRef = useRef(null); // Ref to store timeout ID
+  const confirmTimeoutId = useRef(null); // Ref for auto-confirm timeout
 
   // Generate the list of all cards in a standard deck
   const fullDeckCards = useMemo(() => {
@@ -170,6 +170,9 @@ function App() {
     setMessage("Dealing initial hands...");
     setGamePhase('dealing_initial'); // Intermediate phase
 
+    // Rotate dealer for the *next* round
+    const nextDealerIndex = (dealerIndex + 1) % playerCount;
+
     // Use setTimeout to allow UI update before heavy computation
     setTimeout(() => {
         let initialDeck = createDeck();
@@ -189,7 +192,7 @@ function App() {
           id: i + 1,
           hand: [],
           tricksWon: [], // Store actual tricks (arrays of {card, playerIndex})
-          isDealer: i === dealerIndex,
+          isDealer: i === nextDealerIndex,
           isBidder: false,
           bid: null,
           isTeamBidder: null, // null: unknown, true: bidder team, false: opposition
@@ -227,13 +230,12 @@ function App() {
         setTrumpSuit(null);
         setCurrentTrick([]);
         setScores({ bidderTeam: 0, oppositionTeam: 0 });
-        setCalledCards([]);
         setSelectedPartnerCards([]);
         setBidderTeam([]);
         setOppositionTeam([]);
         setTotalHandsPlayed(0);
 
-        const firstBidder = (dealerIndex + 1) % playerCount;
+        const firstBidder = (nextDealerIndex + 1) % playerCount;
         setCurrentBidderIndex(firstBidder);
         setGamePhase('bidding');
         setMessage(`Player ${firstBidder + 1}'s turn to bid. Minimum bid: ${MIN_BID}.`);
@@ -281,9 +283,7 @@ function App() {
     setBidPasses(newBidPasses);
 
     // Check if bidding ends
-    const activeBidders = players.filter((_, i) => currentBids[i] === null || currentBids[i] > 0).length; // Count players who haven't passed yet or made a bid
     const totalPlayers = players.length;
-    const playersWhoHaveBidOrPassed = Object.keys(currentBids).length;
 
     // Bidding ends if only one non-passing bidder remains OR if everyone has had a turn and passed consecutively
     // Condition 1: A bid was made, and everyone else passed (passes = total players - 1)
@@ -323,145 +323,144 @@ function App() {
 
   // --- Trump Selection ---
   const selectTrump = useCallback((suit) => {
-      if (gamePhase !== 'trump_selection' || bidderIndex === null) return;
-      if (!SUITS.includes(suit)) {
-          setMessage("Invalid suit selected.");
-          return;
-      }
+    if (gamePhase !== 'trump_selection' || bidderIndex === null) return;
+    if (!SUITS.includes(suit)) {
+        setMessage("Invalid suit selected.");
+        return;
+    }
 
-      setTrumpSuit(suit);
-      setMessage(`Trump suit is ${suit}. Dealing remaining cards...`);
-      setGamePhase('deal_final');
+    setTrumpSuit(suit);
+    setMessage(`Trump suit is ${suit}. Dealing remaining cards...`);
+    setGamePhase('deal_final');
 
-      // --- Deal Final Cards ---
-      setTimeout(() => {
-          setPlayers(prevPlayers => {
-              const remainingDeck = [...deck];
+    // --- Deal Final Cards ---
+    setTimeout(() => {
+        setPlayers(prevPlayers => {
+            const remainingDeck = [...deck];
 
-              // Create a deep copy of players including their hands to prevent mutation issues
-              const updatedPlayers = prevPlayers.map(player => ({
-                  ...player,
-                  hand: [...player.hand] // Create a new array for the hand
-              }));
+            // Create a deep copy of players including their hands to prevent mutation issues
+            const updatedPlayers = prevPlayers.map(player => ({
+                ...player,
+                hand: [...player.hand] // Create a new array for the hand
+            }));
 
-              // Error handling: Check if deck is empty or not divisible
-              if (remainingDeck.length === 0) {
-                  console.log("No cards left to deal.");
-                   // Proceed directly to partner selection if no cards left
-                   setMessage(`Trump: ${suit}. Bidder (Player ${bidderIndex + 1}) needs to call partners.`);
-                   setGamePhase('partner_select');
-                   return updatedPlayers; // Return potentially unchanged players if deck was empty
-              }
-              if (remainingDeck.length % numPlayers !== 0) {
-                   console.error("Error: Remaining deck size not divisible by player count.", remainingDeck.length, numPlayers);
-                   setMessage("Error dealing final cards. Deck mismatch.");
-                   setGamePhase('setup'); // Reset on error
-                   return prevPlayers;
-              }
+            // Error handling: Check if deck is empty or not divisible
+            if (remainingDeck.length === 0) {
+                console.log("No cards left to deal.");
+                 // Proceed directly to partner selection if no cards left
+                 setMessage(`Trump: ${suit}. Bidder (Player ${bidderIndex + 1}) needs to call partners.`);
+                 setGamePhase('partner_select');
+                 return updatedPlayers; // Return potentially unchanged players if deck was empty
+            }
+            if (remainingDeck.length % numPlayers !== 0) {
+                 console.error("Error: Remaining deck size not divisible by player count.", remainingDeck.length, numPlayers);
+                 setMessage("Error dealing final cards. Deck mismatch.");
+                 setGamePhase('setup'); // Reset on error
+                 return prevPlayers;
+            }
 
-              // Deal remaining cards
-              while (remainingDeck.length > 0) {
-                   for (let j = 0; j < numPlayers; j++) {
-                       const card = remainingDeck.pop();
-                       if (card) {
-                           updatedPlayers[j].hand.push(card);
-                       } else {
-                           console.error("Error: Ran out of cards unexpectedly during final deal.");
-                           setMessage("Error dealing final cards. Please restart.");
-                           setGamePhase('setup');
-                           return prevPlayers;
-                       }
-                   }
-              }
+            // Deal remaining cards
+            while (remainingDeck.length > 0) {
+                 for (let j = 0; j < numPlayers; j++) {
+                     const card = remainingDeck.pop();
+                     if (card) {
+                         updatedPlayers[j].hand.push(card);
+                     } else {
+                         console.error("Error: Ran out of cards unexpectedly during final deal.");
+                         setMessage("Error dealing final cards. Please restart.");
+                         setGamePhase('setup');
+                         return prevPlayers;
+                     }
+                 }
+            }
 
-               // Sort hands again
-               updatedPlayers.forEach(p => p.hand.sort((a, b) => {
-                   const suitOrder = SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
-                   if (suitOrder !== 0) return suitOrder;
-                   const rankOrder = RANKS.indexOf(b.rank) - RANKS.indexOf(a.rank);
-                   return rankOrder;
-               }));
+             // Sort hands again
+             updatedPlayers.forEach(p => p.hand.sort((a, b) => {
+                 const suitOrder = SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
+                 if (suitOrder !== 0) return suitOrder;
+                 const rankOrder = RANKS.indexOf(b.rank) - RANKS.indexOf(a.rank);
+                 return rankOrder;
+             }));
 
-              setDeck([]); // Deck is now empty
-              setMessage(`Trump: ${suit}. Bidder (Player ${bidderIndex + 1}) needs to call partners.`);
-              setGamePhase('partner_select');
-              return updatedPlayers;
-          });
-      }, 500); // Slightly longer delay to see message
+            setDeck([]); // Deck is now empty
+            setMessage(`Trump: ${suit}. Bidder (Player ${bidderIndex + 1}) needs to call partners.`);
+            setGamePhase('partner_select');
+            setSelectedPartnerCards([]); // Clear selection UI state
+            return updatedPlayers;
+        });
+    }, 500); // Slightly longer delay to see message
 
   }, [gamePhase, bidderIndex, deck, numPlayers]);
 
 
   // --- Partner Selection Logic ---
    const handleSelectPartnerCard = useCallback((card) => {
-       if (gamePhase !== 'partner_select' || bidderIndex === null) return;
+    if (gamePhase !== 'partner_select' || bidderIndex === null) return;
 
-       const numCardsToCall = highestBid > 330 ? 3 : (highestBid > 270 ? 2 : 1);
+    const numCardsToCall = highestBid > 330 ? 3 : (highestBid > 270 ? 2 : 1);
 
-       setSelectedPartnerCards(prevSelected => {
-           const isAlreadySelected = prevSelected.some(c => c.id === card.id);
-           if (isAlreadySelected) {
-               // Deselect
-               return prevSelected.filter(c => c.id !== card.id);
-           } else {
-               // Select, but only if not exceeding the limit
-               if (prevSelected.length < numCardsToCall) {
-                   return [...prevSelected, card];
-               } else {
-                   setMessage(`You can only select ${numCardsToCall} card(s). Deselect one first.`);
-                   return prevSelected; // Return unchanged if limit reached
-               }
-           }
-       });
-   }, [gamePhase, bidderIndex, highestBid]);
+    setSelectedPartnerCards(prevSelected => {
+        const isAlreadySelected = prevSelected.some(c => c.id === card.id);
+        if (isAlreadySelected) {
+            // Deselect
+            return prevSelected.filter(c => c.id !== card.id);
+        } else {
+            // Select, but only if not exceeding the limit
+            if (prevSelected.length < numCardsToCall) {
+                return [...prevSelected, card];
+            } else {
+                setMessage(`You can only select ${numCardsToCall} card(s). Deselect one first.`);
+                return prevSelected; // Return unchanged if limit reached
+            }
+        }
+    });
+}, [gamePhase, bidderIndex, highestBid]);
 
    const confirmPartners = useCallback(() => {
-       if (gamePhase !== 'partner_select' || bidderIndex === null) return;
+    // Note: No isAutoPlayActive check here, auto-mode calls this directly.
+    if (gamePhase !== 'partner_select' || bidderIndex === null) return;
 
-       const numCardsToCall = highestBid > 330 ? 3 : (highestBid > 270 ? 2 : 1);
+    const numCardsToCall = highestBid > 330 ? 3 : (highestBid > 270 ? 2 : 1);
 
-       if (selectedPartnerCards.length !== numCardsToCall) {
-           setMessage(`Please select exactly ${numCardsToCall} card(s) to call.`);
-           return;
-       }
+    if (selectedPartnerCards.length !== numCardsToCall) {
+        setMessage(`Please select exactly ${numCardsToCall} card(s) to call.`);
+        return;
+    }
 
-       setCalledCards(selectedPartnerCards); // Store the officially called cards
+    // Identify partners
+    const bidderTeamIndices = [bidderIndex];
+    const oppositionTeamIndices = [];
+    const partnerCardsIds = selectedPartnerCards.map(c => c.id);
 
-       // Identify partners
-       const bidderTeamIndices = [bidderIndex];
-       const oppositionTeamIndices = [];
-       const partnerCardsIds = selectedPartnerCards.map(c => c.id);
+    players.forEach((player, index) => {
+        if (index === bidderIndex) return; // Skip the bidder themselves
 
-       players.forEach((player, index) => {
-           if (index === bidderIndex) return; // Skip the bidder themselves
+        // Check if the player has any of the called cards
+        const hasPartnerCard = player.hand.some(cardInHand => partnerCardsIds.includes(cardInHand.id));
 
-           // Check if the player has any of the called cards
-           const hasPartnerCard = player.hand.some(cardInHand => partnerCardsIds.includes(cardInHand.id));
+        if (hasPartnerCard) {
+            bidderTeamIndices.push(index);
+        } else {
+            oppositionTeamIndices.push(index);
+        }
+    });
 
-           if (hasPartnerCard) {
-               bidderTeamIndices.push(index);
-           } else {
-               oppositionTeamIndices.push(index);
-           }
-       });
+    setBidderTeam(bidderTeamIndices);
+    setOppositionTeam(oppositionTeamIndices);
 
-       setBidderTeam(bidderTeamIndices);
-       setOppositionTeam(oppositionTeamIndices);
+    // Update player state with team status (important for scoring later)
+    // Keep isTeamBidder null for now, reveal later if needed by rules
+    setPlayers(prev => prev.map((p, i) => ({
+        ...p,
+        isTeamBidder: bidderTeamIndices.includes(i) ? true : (oppositionTeamIndices.includes(i) ? false : null) // Assign team status
+    })));
 
-       // Update player state with team status (important for scoring later)
-       // Keep isTeamBidder null for now, reveal later if needed by rules
-       setPlayers(prev => prev.map((p, i) => ({
-           ...p,
-           isTeamBidder: bidderTeamIndices.includes(i) ? true : (oppositionTeamIndices.includes(i) ? false : null) // Assign team status
-       })));
+    setMessage(`Partners identified (secretly). Starting game! Trump: ${trumpSuit}. Player ${bidderIndex + 1} starts.`);
+    setCurrentPlayerIndex(bidderIndex);
+    setGamePhase('playing');
+    setSelectedPartnerCards([]); // Clear selection UI state
 
-       setMessage(`Partners identified (secretly). Starting game! Trump: ${trumpSuit}. Player ${bidderIndex + 1} starts.`);
-       setTrickLeaderIndex(bidderIndex);
-       setCurrentPlayerIndex(bidderIndex);
-       setGamePhase('playing');
-       setSelectedPartnerCards([]); // Clear selection UI state
-
-   }, [gamePhase, bidderIndex, players, highestBid, selectedPartnerCards, trumpSuit]);
+}, [gamePhase, bidderIndex, players, highestBid, selectedPartnerCards, trumpSuit]);
 
 
    // --- Gameplay Logic ---
@@ -516,102 +515,271 @@ function App() {
             // If current card is not trump, but winner is trump, winner remains.
         }
         return winningPlayerIndex;
-    }, [trumpSuit]); // Dependency on trumpSuit
+    }, []); // Dependency on trumpSuit removed
 
 
    const handlePlayCard = useCallback((cardToPlay) => {
-       if (gamePhase !== 'playing' || currentPlayerIndex === null || !players[currentPlayerIndex]) return;
+    if (gamePhase !== 'playing' || currentPlayerIndex === null || !players[currentPlayerIndex]) return;
 
-       const playerHand = players[currentPlayerIndex].hand;
-       const leadCard = currentTrick.length > 0 ? currentTrick[0].card : null;
-       const leadSuit = leadCard ? leadCard.suit : null;
+    const playerHand = players[currentPlayerIndex].hand;
+    const leadCard = currentTrick.length > 0 ? currentTrick[0].card : null;
+    const leadSuit = leadCard ? leadCard.suit : null;
 
-       // --- Card Play Validation ---
-       const hasLeadSuit = playerHand.some(card => card.suit === leadSuit);
+    // --- Card Play Validation ---
+    const hasLeadSuit = playerHand.some(card => card.suit === leadSuit);
 
-       if (leadSuit && cardToPlay.suit !== leadSuit && hasLeadSuit) {
-           setMessage(`Invalid move: You must play the lead suit (${leadSuit}) if you have it.`);
-           return;
-       }
-       // Player is allowed to play this card (either followed suit, or didn't have lead suit)
+    if (leadSuit && cardToPlay.suit !== leadSuit && hasLeadSuit) {
+        setMessage(`Invalid move: You must play the lead suit (${leadSuit}) if you have it.`);
+        return;
+    }
+    // Player is allowed to play this card (either followed suit, or didn't have lead suit)
 
-       // --- Update State ---
-       // 1. Add card to trick
-       const newTrick = [...currentTrick, { card: cardToPlay, playerIndex: currentPlayerIndex }];
-       setCurrentTrick(newTrick);
+    // --- Update State ---
+    // 1. Add card to trick
+    const newTrick = [...currentTrick, { card: cardToPlay, playerIndex: currentPlayerIndex }];
+    setCurrentTrick(newTrick);
 
-       // 2. Remove card from player's hand
-       setPlayers(prevPlayers => {
-           const updatedPlayers = [...prevPlayers];
-           updatedPlayers[currentPlayerIndex] = {
-               ...updatedPlayers[currentPlayerIndex],
-               hand: updatedPlayers[currentPlayerIndex].hand.filter(card => card.id !== cardToPlay.id)
-           };
-           return updatedPlayers;
-       });
+    // 2. Remove card from player's hand
+    setPlayers(prevPlayers => {
+        const updatedPlayers = [...prevPlayers];
+        updatedPlayers[currentPlayerIndex] = {
+            ...updatedPlayers[currentPlayerIndex],
+            hand: updatedPlayers[currentPlayerIndex].hand.filter(card => card.id !== cardToPlay.id)
+        };
+        return updatedPlayers;
+    });
 
-       // 3. Determine next player or end trick
-       const nextPlayerIndex = (currentPlayerIndex + 1) % numPlayers;
+    // 3. Determine next player or end trick
+    const nextPlayerIndex = (currentPlayerIndex + 1) % numPlayers;
 
-       if (newTrick.length === numPlayers) {
-           // --- Trick Complete ---
-           const winnerIndex = determineTrickWinner(newTrick, leadSuit || cardToPlay.suit, trumpSuit); // Pass lead suit (or first card's suit if lead)
-           const pointsInTrick = newTrick.reduce((sum, { card }) => sum + card.points, 0);
+    if (newTrick.length === numPlayers) {
+        // --- Trick Complete ---
+        const winnerIndex = determineTrickWinner(newTrick, leadSuit || cardToPlay.suit, trumpSuit); // Pass lead suit (or first card's suit if lead)
+        const pointsInTrick = newTrick.reduce((sum, { card }) => sum + card.points, 0);
 
-           setMessage(`Trick complete! Player ${winnerIndex + 1} wins the trick with ${pointsInTrick} points.`);
+        setMessage(`Trick complete! Player ${winnerIndex + 1} wins the trick with ${pointsInTrick} points.`);
 
-           // Update winner's tricksWon and scores
-           setPlayers(prevPlayers => {
-               const updatedPlayers = [...prevPlayers];
-               updatedPlayers[winnerIndex] = {
-                   ...updatedPlayers[winnerIndex],
-                   tricksWon: [...updatedPlayers[winnerIndex].tricksWon, newTrick] // Store the whole trick
-               };
-               return updatedPlayers;
-           });
+        // Update winner's tricksWon and scores
+        setPlayers(prevPlayers => {
+            const updatedPlayers = [...prevPlayers];
+            updatedPlayers[winnerIndex] = {
+                ...updatedPlayers[winnerIndex],
+                tricksWon: [...updatedPlayers[winnerIndex].tricksWon, newTrick] // Store the whole trick
+            };
+            return updatedPlayers;
+        });
 
-           // Update overall scores based on winner's team
-           setScores(prevScores => {
-               const isWinnerBidderTeam = bidderTeam.includes(winnerIndex);
-               if (isWinnerBidderTeam) {
-                   return { ...prevScores, bidderTeam: prevScores.bidderTeam + pointsInTrick };
-               } else {
-                   return { ...prevScores, oppositionTeam: prevScores.oppositionTeam + pointsInTrick };
-               }
-           });
+        // Update overall scores based on winner's team
+        setScores(prevScores => {
+            const isWinnerBidderTeam = bidderTeam.includes(winnerIndex);
+            if (isWinnerBidderTeam) {
+                return { ...prevScores, bidderTeam: prevScores.bidderTeam + pointsInTrick };
+            } else {
+                return { ...prevScores, oppositionTeam: prevScores.oppositionTeam + pointsInTrick };
+            }
+        });
 
-           setTotalHandsPlayed(prev => prev + 1);
+        setTotalHandsPlayed(prev => prev + 1);
 
-           // Check if game ended (all cards played)
-           const totalCardsInGame = (numPlayers === 5 ? 50 : 48); // 52 - removed cards
-           const expectedTricks = totalCardsInGame / numPlayers;
+        // Check if game ended (all cards played)
+        const totalCardsInGame = (numPlayers === 5 ? 50 : 48); // 52 - removed cards
+        const expectedTricks = totalCardsInGame / numPlayers;
 
-           if (totalHandsPlayed + 1 >= expectedTricks) {
-               // --- Game Over ---
-               setGamePhase('scoring');
-               setCurrentPlayerIndex(null);
-               setCurrentTrick([]); // Clear last trick display
-               // Scoring logic will be handled by the 'scoring' phase render
-               setMessage("Game Over! Calculating final scores...");
-           } else {
-               // --- Start Next Trick ---
-               setCurrentTrick([]); // Clear the current trick for the next round
-               setTrickLeaderIndex(winnerIndex); // Winner leads next trick
-               setCurrentPlayerIndex(winnerIndex);
-               // Add short delay before next turn message?
-               setTimeout(() => {
-                    setMessage(`Player ${winnerIndex + 1} leads the next trick.`);
-               }, 1500); // Delay to read trick winner message
-           }
+        if (totalHandsPlayed + 1 >= expectedTricks) {
+            // --- Game Over ---
+            setGamePhase('scoring');
+            setCurrentPlayerIndex(null);
+            setCurrentTrick([]); // Clear last trick display
+            // Scoring logic will be handled by the 'scoring' phase render
+            setMessage("Game Over! Calculating final scores...");
+        } else {
+            // --- Start Next Trick ---
+            setCurrentTrick([]); // Clear the current trick for the next round
+            setCurrentPlayerIndex(winnerIndex); // Winner leads next trick
+            // Add short delay before next turn message?
+            setTimeout(() => {
+                 setMessage(`Player ${winnerIndex + 1} leads the next trick.`);
+            }, 1500); // Delay to read trick winner message
+        }
 
-       } else {
-           // --- Trick Continues ---
-           setCurrentPlayerIndex(nextPlayerIndex);
-           setMessage(`Player ${currentPlayerIndex + 1} played ${cardToPlay.rank}${cardToPlay.suit}. Player ${nextPlayerIndex + 1}'s turn.`);
-       }
+    } else {
+        // --- Trick Continues ---
+        setCurrentPlayerIndex(nextPlayerIndex);
+        setMessage(`Player ${currentPlayerIndex + 1} played ${cardToPlay.rank}${cardToPlay.suit}. Player ${nextPlayerIndex + 1}'s turn.`);
+    }
 
-   }, [gamePhase, currentPlayerIndex, players, currentTrick, numPlayers, trumpSuit, determineTrickWinner, bidderTeam, totalHandsPlayed]);
+}, [gamePhase, currentPlayerIndex, players, currentTrick, numPlayers, determineTrickWinner, bidderTeam, totalHandsPlayed, trumpSuit]);
 
+
+  // --- Auto Play Logic ---
+
+  const AUTO_PLAY_DELAY = 1000; // Delay in ms for auto actions
+
+  // Helper to get random element from array
+  const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // Auto Bid Function
+  const handleAutoBid = useCallback(() => {
+    if (!players[currentBidderIndex]) return; // Safety check
+
+    const minPossibleBid = highestBid + 1 < MIN_BID ? MIN_BID : highestBid + 1;
+    const possibleBids = [];
+    for (let bid = minPossibleBid; bid <= MAX_BID; bid += 5) {
+      possibleBids.push(bid);
+    }
+
+    // Decide whether to bid or pass (e.g., 60% chance to pass initially)
+    const shouldPass = Math.random() < 0.6 || possibleBids.length === 0;
+
+    if (shouldPass) {
+      handleBid(currentBidderIndex, '0');
+    } else {
+      // Simple random bid from possible options
+      const randomBid = getRandomElement(possibleBids);
+      handleBid(currentBidderIndex, randomBid.toString());
+    }
+  }, [currentBidderIndex, highestBid, players, handleBid]);
+
+  // Auto Trump Selection Function
+  const handleAutoSelectTrump = useCallback(() => {
+    const randomSuit = getRandomElement(SUITS);
+    selectTrump(randomSuit);
+  }, [selectTrump]);
+
+  // Auto Partner Card Selection Function
+  const handleAutoSelectPartnerCards = useCallback(() => {
+      if (!availableCardsToCall || availableCardsToCall.length === 0) return;
+      const numCardsToCall = highestBid > 330 ? 3 : (highestBid > 270 ? 2 : 1);
+
+      let currentSelection = [];
+      const availableCopy = [...availableCardsToCall]; // Avoid mutating original
+
+      // Shuffle available cards to pick random ones
+      shuffleDeck(availableCopy);
+
+      // Select the required number of unique cards
+      while (currentSelection.length < numCardsToCall && availableCopy.length > 0) {
+         currentSelection.push(availableCopy.pop());
+      }
+
+      // Set the selected cards (triggers UI update briefly)
+      setSelectedPartnerCards(currentSelection);
+
+  }, [availableCardsToCall, highestBid, setSelectedPartnerCards]);
+
+  // Auto Play Card Function
+  const handleAutoPlayCard = useCallback(() => {
+      if (!players[currentPlayerIndex]) return; // Safety check
+
+      const playerHand = players[currentPlayerIndex].hand;
+      const leadCard = currentTrick.length > 0 ? currentTrick[0].card : null;
+      const leadSuit = leadCard ? leadCard.suit : null;
+
+      let playableCards = playerHand;
+      if (leadSuit) {
+          const cardsInLeadSuit = playerHand.filter(card => card.suit === leadSuit);
+          if (cardsInLeadSuit.length > 0) {
+              playableCards = cardsInLeadSuit; // Must follow suit
+          }
+      }
+
+      if (playableCards.length > 0) {
+          const randomCardToPlay = getRandomElement(playableCards);
+          handlePlayCard(randomCardToPlay);
+      } else {
+          console.error("AutoPlay Error: No playable cards found for player", currentPlayerIndex);
+          // Maybe force stop auto play? Or just log error.
+          setIsAutoPlayActive(false);
+          setMessage("Error during Auto Play. Stopped.");
+      }
+  }, [currentPlayerIndex, players, currentTrick, handlePlayCard]);
+
+  // useEffect to trigger auto actions
+  useEffect(() => {
+      // Clear any existing timeout if dependencies change or component unmounts
+      if (autoPlayTimeoutRef.current) {
+          clearTimeout(autoPlayTimeoutRef.current);
+          autoPlayTimeoutRef.current = null;
+      }
+
+      if (isAutoPlayActive && gamePhase !== 'setup' && gamePhase !== 'scoring' && gamePhase !== 'dealing_initial' && gamePhase !== 'deal_final') {
+          let actionToSchedule = null;
+
+          // Determine the correct action based on current committed state
+          switch (gamePhase) {
+              case 'bidding':
+                  if (currentBidderIndex !== null) {
+                      actionToSchedule = handleAutoBid;
+                  }
+                  break;
+              case 'trump_selection':
+                  if (bidderIndex !== null) {
+                      actionToSchedule = handleAutoSelectTrump;
+                  }
+                  break;
+              case 'partner_select':
+                  // Auto-selection trigger. Confirmation is handled by another effect.
+                  if (bidderIndex !== null && selectedPartnerCards.length === 0) { // Only trigger selection if not already selected
+                    actionToSchedule = handleAutoSelectPartnerCards;
+                  }
+                  break;
+              case 'playing':
+                  if (currentPlayerIndex !== null) {
+                      actionToSchedule = handleAutoPlayCard;
+                  }
+                  break;
+              default:
+                  break; // Should not happen based on outer check
+          }
+
+          // If a valid action was determined, schedule it
+          if (actionToSchedule) {
+              console.log(`AutoPlay: Scheduling ${actionToSchedule.name} for phase ${gamePhase}`);
+              autoPlayTimeoutRef.current = setTimeout(() => {
+                console.log(`AutoPlay: Executing ${actionToSchedule.name}`);
+                actionToSchedule();
+              }, AUTO_PLAY_DELAY);
+          }
+      }
+
+      // Cleanup function to clear timeout on unmount or before next effect run
+      return () => {
+          if (autoPlayTimeoutRef.current) {
+              clearTimeout(autoPlayTimeoutRef.current);
+              autoPlayTimeoutRef.current = null;
+          }
+      };
+  }, [gamePhase, currentBidderIndex, bidderIndex, currentPlayerIndex, isAutoPlayActive, handleAutoBid, handleAutoSelectPartnerCards, handleAutoPlayCard]);
+
+  // useEffect to handle auto-confirming partner cards after selection
+  useEffect(() => {
+    // Use a ref to prevent running on initial mount or if selection is cleared
+    if (isAutoPlayActive && gamePhase === 'partner_select' && bidderIndex !== null) {
+        const numCardsToCall = highestBid > 330 ? 3 : (highestBid > 270 ? 2 : 1);
+
+        // Check if the correct number of cards has been selected
+        if (selectedPartnerCards.length === numCardsToCall) {
+
+            // Clear previous timeout just in case
+            if (confirmTimeoutId.current) clearTimeout(confirmTimeoutId.current);
+
+            // Set a timeout to confirm after a short delay for visibility
+            confirmTimeoutId.current = setTimeout(() => {
+                console.log("Auto-confirming partners...");
+                confirmPartners();
+            }, 300); // Delay for visibility
+        }
+    }
+
+    // Cleanup function to clear timeout if dependencies change or component unmounts
+    return () => {
+        if (confirmTimeoutId.current) {
+            clearTimeout(confirmTimeoutId.current);
+            confirmTimeoutId.current = null;
+        }
+    };
+    // This effect specifically reacts to changes needed for auto-confirmation
+}, [isAutoPlayActive, gamePhase, bidderIndex, selectedPartnerCards, highestBid, confirmPartners]);
 
   // --- Rendering ---
 
@@ -658,6 +826,7 @@ function App() {
                     <input
                         type="number"
                         min={highestBid + 1 < MIN_BID ? MIN_BID : highestBid + 1}
+                        disabled={isAutoPlayActive}
                         max={MAX_BID}
                         step="5" // Bids often in steps of 5 or 10
                         placeholder={`Min ${highestBid + 1 < MIN_BID ? MIN_BID : highestBid + 1}`}
@@ -668,10 +837,14 @@ function App() {
                     <button onClick={() => {
                         const input = document.getElementById('bidAmountInput');
                         handleBid(currentBidderIndex, input.value || '0'); // Pass value directly
-                    }} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2 transition-colors">
+                    }} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2 transition-colors"
+                        disabled={isAutoPlayActive}
+                    >
                         Bid
                     </button>
-                    <button onClick={() => handleBid(currentBidderIndex, '0')} className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors">
+                    <button onClick={() => handleBid(currentBidderIndex, '0')} className="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                        disabled={isAutoPlayActive}
+                    >
                         Pass
                     </button>
                  </div>
@@ -691,6 +864,7 @@ function App() {
                                  <button
                                      key={suit}
                                      onClick={() => selectTrump(suit)}
+                                     disabled={isAutoPlayActive}
                                      className={`w-16 h-16 rounded-lg text-3xl font-bold border-2 shadow-md flex items-center justify-center transition-transform hover:scale-110 ${
                                          suit === '♥' || suit === '♦' ? 'text-red-600 border-red-600 hover:bg-red-100' : 'text-black border-black hover:bg-gray-200'
                                      }`}
@@ -732,7 +906,7 @@ function App() {
                   )}
                   <button
                       onClick={confirmPartners}
-                      disabled={selectedPartnerCards.length !== numCardsToCall}
+                      disabled={isAutoPlayActive || selectedPartnerCards.length !== numCardsToCall}
                       className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       Confirm {selectedPartnerCards.length}/{numCardsToCall} Called Cards
@@ -820,8 +994,8 @@ function App() {
                   key={player.id}
                   player={player}
                   cards={player.hand}
-                  // Enable card clicking only for the current player during the 'playing' phase
-                  onCardClick={(gamePhase === 'playing' && index === currentPlayerIndex) ? handlePlayCard : undefined}
+                  // Enable card clicking only for the current player during the 'playing' phase AND if autoPlay is off
+                  onCardClick={(gamePhase === 'playing' && index === currentPlayerIndex && !isAutoPlayActive) ? handlePlayCard : undefined}
                   // Highlight the current player during 'playing' and 'bidding' phases
                   isCurrentPlayer={(gamePhase === 'playing' && index === currentPlayerIndex) || (gamePhase === 'bidding' && index === currentBidderIndex)}
                   // Control hand visibility based on game phase and debug toggle
@@ -837,6 +1011,10 @@ function App() {
             <div className="flex justify-between items-center">
                 <h4 className="font-semibold">Game Info / Controls</h4>
                 <div>
+                    <label className="mr-4">
+                        <input type="checkbox" checked={isAutoPlayActive} onChange={(e) => setIsAutoPlayActive(e.target.checked)} className="mr-1 align-middle"/>
+                        Auto Play
+                    </label>
                     <label className="mr-4">
                         <input type="checkbox" checked={showHands} onChange={(e) => setShowHands(e.target.checked)} className="mr-1 align-middle"/>
                         Show All Hands
