@@ -1013,7 +1013,7 @@ function App() {
                 <div>
                     <label className="mr-4">
                         <input type="checkbox" checked={isAutoPlayActive} onChange={(e) => setIsAutoPlayActive(e.target.checked)} className="mr-1 align-middle"/>
-                        Auto Play
+                        Auto Play (trigger after the bidding stage)
                     </label>
                     <label className="mr-4">
                         <input type="checkbox" checked={showHands} onChange={(e) => setShowHands(e.target.checked)} className="mr-1 align-middle"/>
