@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import Rulebook from './Rulebook'; // Import the new component
 
 // --- Constants ---
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -127,6 +128,7 @@ function App() {
   const [isAutoPlayActive, setIsAutoPlayActive] = useState(false); // State for auto play mode
   const autoPlayTimeoutRef = useRef(null); // Ref to store timeout ID
   const confirmTimeoutId = useRef(null); // Ref for auto-confirm timeout
+  const [viewMode, setViewMode] = useState('game'); // 'game' or 'rules'
 
   // Generate the list of all cards in a standard deck
   const fullDeckCards = useMemo(() => {
@@ -974,63 +976,75 @@ function App() {
 
   return (
     <div className="container mx-auto p-4 font-sans flex flex-col min-h-screen bg-gray-50">
-      <header className="bg-gray-800 text-white p-4 rounded-lg mb-6 shadow-md">
+      <header className="bg-gray-800 text-white p-4 rounded-lg mb-6 shadow-md flex justify-between items-center">
         <h1 className="text-3xl font-bold text-center">350!!</h1>
+        <button
+          onClick={() => setViewMode(viewMode === 'game' ? 'rules' : 'game')}
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded text-sm transition-colors"
+        >
+          {viewMode === 'game' ? 'Show Rules' : 'Show Game'}
+        </button>
       </header>
 
-      {/* Central Game Area (Phase dependent content) */}
-      <div className="flex-grow mb-6 p-4 bg-white rounded-lg shadow">
-        {renderGamePhaseContent()}
-      </div>
+      {viewMode === 'game' ? (
+        <>
+          {/* Central Game Area (Phase dependent content) */}
+          <div className="flex-grow mb-6 p-4 bg-white rounded-lg shadow">
+            {renderGamePhaseContent()}
+          </div>
 
-      {/* Player Hands Area - Conditionally render based on phase */}
-      {players.length > 0 && gamePhase !== 'setup' && (
-        <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-3 text-center text-gray-700">Player Hands</h2>
-            <div className={`grid grid-cols-1 ${numPlayers === 5 ? 'md:grid-cols-3 lg:grid-cols-5' : 'md:grid-cols-3 lg:grid-cols-3'} gap-4`}>
-             {/* Adjust grid columns based on player count for better layout */}
-              {players.map((player, index) => (
-                <PlayerHand
-                  key={player.id}
-                  player={player}
-                  cards={player.hand}
-                  // Enable card clicking only for the current player during the 'playing' phase AND if autoPlay is off
-                  onCardClick={(gamePhase === 'playing' && index === currentPlayerIndex && !isAutoPlayActive) ? handlePlayCard : undefined}
-                  // Highlight the current player during 'playing' and 'bidding' phases
-                  isCurrentPlayer={(gamePhase === 'playing' && index === currentPlayerIndex) || (gamePhase === 'bidding' && index === currentBidderIndex)}
-                  // Control hand visibility based on game phase and debug toggle
-                  showHand={isHandVisible(index)}
-                />
-              ))}
-            </div>
-        </div>
-      )}
-
-       {/* Debug/Control Panel - Keep at bottom */}
-       <div className="mt-auto p-3 border rounded bg-gray-100 shadow-inner text-sm">
-            <div className="flex justify-between items-center">
-                <h4 className="font-semibold">Game Info / Controls</h4>
-                <div>
-                    <label className="mr-4">
-                        <input type="checkbox" checked={isAutoPlayActive} onChange={(e) => setIsAutoPlayActive(e.target.checked)} className="mr-1 align-middle"/>
-                        Auto Play (trigger after the bidding stage)
-                    </label>
-                    <label className="mr-4">
-                        <input type="checkbox" checked={showHands} onChange={(e) => setShowHands(e.target.checked)} className="mr-1 align-middle"/>
-                        Show All Hands
-                    </label>
-                    <button onClick={() => setGamePhase('setup')} className="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded transition-colors">
-                        Reset Game
-                    </button>
+          {/* Player Hands Area - Conditionally render based on phase */}
+          {players.length > 0 && gamePhase !== 'setup' && (
+            <div className="mb-6">
+                <h2 className="text-xl font-semibold mb-3 text-center text-gray-700">Player Hands</h2>
+                <div className={`grid grid-cols-1 ${numPlayers === 5 ? 'md:grid-cols-3 lg:grid-cols-5' : 'md:grid-cols-3 lg:grid-cols-3'} gap-4`}>
+                 {/* Adjust grid columns based on player count for better layout */}
+                  {players.map((player, index) => (
+                    <PlayerHand
+                      key={player.id}
+                      player={player}
+                      cards={player.hand}
+                      // Enable card clicking only for the current player during the 'playing' phase AND if autoPlay is off
+                      onCardClick={(gamePhase === 'playing' && index === currentPlayerIndex && !isAutoPlayActive) ? handlePlayCard : undefined}
+                      // Highlight the current player during 'playing' and 'bidding' phases
+                      isCurrentPlayer={(gamePhase === 'playing' && index === currentPlayerIndex) || (gamePhase === 'bidding' && index === currentBidderIndex)}
+                      // Control hand visibility based on game phase and debug toggle
+                      showHand={isHandVisible(index)}
+                    />
+                  ))}
                 </div>
             </div>
-             <div className="flex gap-4 mt-1 text-xs text-gray-600">
-                 <span>Phase: <span className="font-medium">{gamePhase}</span></span>
-                 <span>Trump: <span className="font-medium">{trumpSuit || 'N/A'}</span></span>
-                 <span>Bidder Team: <span className="font-medium">[{bidderTeam.map(i => i + 1).join(', ')}]</span></span>
-                 <span>Opposition Team: <span className="font-medium">[{oppositionTeam.map(i => i + 1).join(', ')}]</span></span>
-             </div>
-        </div>
+          )}
+
+           {/* Debug/Control Panel - Keep at bottom */}
+           <div className="mt-auto p-3 border rounded bg-gray-100 shadow-inner text-sm">
+                <div className="flex justify-between items-center">
+                    <h4 className="font-semibold">Game Info / Controls</h4>
+                    <div>
+                        <label className="mr-4">
+                            <input type="checkbox" checked={isAutoPlayActive} onChange={(e) => setIsAutoPlayActive(e.target.checked)} className="mr-1 align-middle"/>
+                            Auto Play (trigger after the bidding stage)
+                        </label>
+                        <label className="mr-4">
+                            <input type="checkbox" checked={showHands} onChange={(e) => setShowHands(e.target.checked)} className="mr-1 align-middle"/>
+                            Show All Hands
+                        </label>
+                        <button onClick={() => setGamePhase('setup')} className="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded transition-colors">
+                            Reset Game
+                        </button>
+                    </div>
+                </div>
+                 <div className="flex gap-4 mt-1 text-xs text-gray-600">
+                     <span>Phase: <span className="font-medium">{gamePhase}</span></span>
+                     <span>Trump: <span className="font-medium">{trumpSuit || 'N/A'}</span></span>
+                     <span>Bidder Team: <span className="font-medium">[{bidderTeam.map(i => i + 1).join(', ')}]</span></span>
+                     <span>Opposition Team: <span className="font-medium">[{oppositionTeam.map(i => i + 1).join(', ')}]</span></span>
+                 </div>
+            </div>
+        </>
+      ) : (
+        <Rulebook />
+      )}
 
       <footer className="text-center text-xs text-gray-500 mt-4 py-2">
         React Card Game Simulation v1.1
