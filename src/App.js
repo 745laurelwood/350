@@ -975,7 +975,7 @@ function App() {
   return (
     <div className="container mx-auto p-4 font-sans flex flex-col min-h-screen bg-gray-50">
       <header className="bg-gray-800 text-white p-4 rounded-lg mb-6 shadow-md">
-        <h1 className="text-3xl font-bold text-center">Card Game Simulator (350 Points)</h1>
+        <h1 className="text-3xl font-bold text-center">350!!</h1>
       </header>
 
       {/* Central Game Area (Phase dependent content) */}
