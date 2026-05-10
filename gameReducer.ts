@@ -416,7 +416,7 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
 
       const calledStr = resolved.map(c => cardStr(c)).join(', ');
       let log = logPush(state.gameLog, `${bidder.name} called ${calledStr}`);
-      log = logPush(log, `Bidder leads — partners revealed at round end`);
+      log = logPush(log, `Bidder leads — partners revealed as their cards are played`);
 
       return {
         ...state,
