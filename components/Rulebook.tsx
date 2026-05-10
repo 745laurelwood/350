@@ -1,5 +1,5 @@
 import React from 'react';
-import { MIN_BID, MAX_BID, WINNING_GAME_POINTS } from '../rules';
+import { MIN_BID, MAX_BID } from '../rules';
 
 interface RulebookProps {
   onClose: () => void;
@@ -160,20 +160,16 @@ export const Rulebook: React.FC<RulebookProps> = ({ onClose }) => {
           </p>
         </section>
 
-        <section className="mb-8">
-          <h2 className="font-display text-xl sm:text-2xl mb-3" style={{ color: 'var(--fg)' }}>Scoring</h2>
+        <section className="mb-10">
+          <h2 className="font-display text-xl sm:text-2xl mb-3" style={{ color: 'var(--fg)' }}>Scoring &amp; Winning</h2>
           <p style={{ color: 'var(--fg-soft)' }}>
             When all cards are played, each side totals the card points in its captured tricks.
-            If the bidder's team total is <strong>at or above</strong> the bid, they make the bid: every player
-            on the bidder's team scores <strong>+1 game point</strong>, others score 0. If the bidder's team
-            falls short, every opposition player scores <strong>+1 game point</strong>, bidder team scores 0.
+            If the bidder's team total is <strong>at or above</strong> the bid, the bidder team wins
+            the game. Otherwise, the opposition wins.
           </p>
-        </section>
-
-        <section className="mb-10">
-          <h2 className="font-display text-xl sm:text-2xl mb-3" style={{ color: 'var(--fg)' }}>Winning the Match</h2>
-          <p style={{ color: 'var(--fg-soft)' }}>
-            The first player to reach <strong>+{WINNING_GAME_POINTS}</strong> game points wins.
+          <p className="mt-3" style={{ color: 'var(--fg-soft)' }}>
+            Each round is a fresh game — no score carries over. After the result, everyone returns to
+            the lobby and a new game begins.
           </p>
         </section>
 

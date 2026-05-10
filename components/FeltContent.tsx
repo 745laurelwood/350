@@ -26,8 +26,13 @@ export const FeltContent: React.FC = () => {
 
   // ── GAME OVER ──
   if (state.gamePhase === 'GAME_OVER') {
-    const sortedPlayers = [...state.players].sort((a, b) => b.score - a.score);
-    const winner = sortedPlayers[0];
+    const { roundScores, bidValue, bidWinner } = state;
+    const bidder = state.players[bidWinner];
+    const bidderTeam = new Set(state.bidderTeamIndices);
+    const bidderMade = roundScores.bidderTeam >= bidValue;
+    const bidderTeamPlayers = state.players.filter(p => bidderTeam.has(p.id));
+    const oppositionPlayers = state.players.filter(p => !bidderTeam.has(p.id));
+
     const readySet = new Set(state.readyForLobbyIndices || []);
     const humanPlayers = state.players.filter(p => p.isHuman);
     const totalHumans = humanPlayers.length;
@@ -35,40 +40,57 @@ export const FeltContent: React.FC = () => {
     const iAmReady = readySet.has(myIndex);
 
     return (
-      <div className="flex flex-col items-center gap-4 sm:gap-6 px-4 py-6 sm:py-8 max-w-xl w-full">
+      <div className="flex flex-col items-center gap-4 sm:gap-5 px-4 py-6 sm:py-8 max-w-xl w-full">
         <div className="text-center">
           <div className="text-xs sm:text-sm uppercase tracking-[0.2em]" style={{ color: 'var(--dim)' }}>Game Over</div>
-          <div className="mt-1 text-xl sm:text-2xl font-display" style={{ color: 'var(--gold)' }}>
-            {winner.name} wins!
+          <div className="mt-1 text-lg sm:text-xl font-display" style={{ color: 'var(--fg)' }}>
+            {bidder && (
+              <>
+                <span style={{ color: bidderMade ? 'var(--accent)' : 'var(--red)' }}>
+                  {bidderMade ? 'Bidder team wins' : 'Opposition wins'}
+                </span>
+              </>
+            )}
+          </div>
+          <div className="text-xs sm:text-sm mt-1" style={{ color: 'var(--fg-soft)' }}>
+            Target {bidValue} · Bidder team captured {roundScores.bidderTeam}
           </div>
         </div>
-        <div
-          className="w-full rounded-xl overflow-hidden"
-          style={{ background: 'var(--bg-1)', border: '1px solid var(--line)' }}
-        >
-          <table className="w-full text-sm sm:text-base" style={{ color: 'var(--fg-soft)' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-2)', color: 'var(--fg)' }}>
-                <th className="text-left px-3 py-2 font-semibold">Rank</th>
-                <th className="text-left px-3 py-2 font-semibold">Player</th>
-                <th className="text-right px-3 py-2 font-semibold">Score</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedPlayers.map((p, i) => (
-                <tr key={p.id} style={{ borderTop: '1px solid var(--line)' }}>
-                  <td className="px-3 py-1.5">{i + 1}</td>
-                  <td className="px-3 py-1.5">
-                    {p.name}
-                    {p.id === myIndex && <span className="ml-1.5 text-[10px]" style={{ color: 'var(--dim)' }}>(you)</span>}
-                  </td>
-                  <td className="px-3 py-1.5 text-right font-display tabular-nums" style={{ color: i === 0 ? 'var(--gold)' : 'var(--fg)' }}>
-                    {p.score}
-                  </td>
-                </tr>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
+          <div
+            className="p-3 sm:p-4 rounded-xl"
+            style={{
+              background: bidderMade ? 'rgba(111,176,255,0.08)' : 'var(--bg-1)',
+              border: `1px solid ${bidderMade ? 'rgba(111,176,255,0.35)' : 'var(--line)'}`,
+            }}
+          >
+            <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--dim)' }}>Bidder Team</div>
+            <div className="text-xl sm:text-2xl font-display" style={{ color: 'var(--accent)' }}>
+              {roundScores.bidderTeam}
+            </div>
+            <ul className="mt-2 text-[11px] sm:text-xs space-y-0.5" style={{ color: 'var(--fg-soft)' }}>
+              {bidderTeamPlayers.map(p => (
+                <li key={p.id}>
+                  {p.name}{p.id === bidWinner && <span className="ml-1" style={{ color: 'var(--gold)' }}>★</span>}
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          </div>
+          <div
+            className="p-3 sm:p-4 rounded-xl"
+            style={{
+              background: !bidderMade ? 'rgba(232,146,154,0.08)' : 'var(--bg-1)',
+              border: `1px solid ${!bidderMade ? 'rgba(232,146,154,0.35)' : 'var(--line)'}`,
+            }}
+          >
+            <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--dim)' }}>Opposition</div>
+            <div className="text-xl sm:text-2xl font-display" style={{ color: 'var(--red)' }}>
+              {roundScores.opposition}
+            </div>
+            <ul className="mt-2 text-[11px] sm:text-xs space-y-0.5" style={{ color: 'var(--fg-soft)' }}>
+              {oppositionPlayers.map(p => (<li key={p.id}>{p.name}</li>))}
+            </ul>
+          </div>
         </div>
         <div className="flex flex-col items-center gap-1">
           <button
@@ -91,94 +113,6 @@ export const FeltContent: React.FC = () => {
             </p>
           )}
         </div>
-      </div>
-    );
-  }
-
-  // ── ROUND OVER ──
-  if (state.gamePhase === 'ROUND_OVER') {
-    const { roundScores, bidValue, bidWinner } = state;
-    const bidder = state.players[bidWinner];
-    const bidderTeam = new Set(state.bidderTeamIndices);
-    const bidderMade = roundScores.bidderTeam >= bidValue;
-    const bidderTeamPlayers = state.players.filter(p => bidderTeam.has(p.id));
-    const oppositionPlayers = state.players.filter(p => !bidderTeam.has(p.id));
-    return (
-      <div className="flex flex-col items-center gap-4 sm:gap-5 px-4 py-6 sm:py-8 max-w-xl w-full">
-        <div className="text-center">
-          <div className="text-xs sm:text-sm uppercase tracking-[0.2em]" style={{ color: 'var(--dim)' }}>Round Complete</div>
-          <div className="mt-1 text-lg sm:text-xl font-display" style={{ color: 'var(--fg)' }}>
-            {bidder && (
-              <>
-                <span style={{ color: 'var(--gold)' }}>{bidder.name}</span>
-                {bidderMade ? ' made the bid' : ' missed the bid'}
-              </>
-            )}
-          </div>
-          <div className="text-xs sm:text-sm mt-1" style={{ color: 'var(--fg-soft)' }}>
-            Target {bidValue} · Captured {roundScores.bidderTeam}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
-          <div
-            className="p-3 sm:p-4 rounded-xl"
-            style={{
-              background: bidderMade ? 'rgba(127,215,169,0.08)' : 'var(--bg-1)',
-              border: `1px solid ${bidderMade ? 'rgba(127,215,169,0.35)' : 'var(--line)'}`,
-            }}
-          >
-            <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--dim)' }}>Bidder Team</div>
-            <div className="text-xl sm:text-2xl font-display" style={{ color: 'var(--gold)' }}>
-              {roundScores.bidderTeam}
-            </div>
-            <ul className="mt-2 text-[11px] sm:text-xs space-y-0.5" style={{ color: 'var(--fg-soft)' }}>
-              {bidderTeamPlayers.map(p => (
-                <li key={p.id}>
-                  {p.name}{p.id === bidWinner && <span className="ml-1" style={{ color: 'var(--gold)' }}>★</span>}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div
-            className="p-3 sm:p-4 rounded-xl"
-            style={{
-              background: !bidderMade ? 'rgba(127,215,169,0.08)' : 'var(--bg-1)',
-              border: `1px solid ${!bidderMade ? 'rgba(127,215,169,0.35)' : 'var(--line)'}`,
-            }}
-          >
-            <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'var(--dim)' }}>Opposition</div>
-            <div className="text-xl sm:text-2xl font-display" style={{ color: 'var(--accent)' }}>
-              {roundScores.opposition}
-            </div>
-            <ul className="mt-2 text-[11px] sm:text-xs space-y-0.5" style={{ color: 'var(--fg-soft)' }}>
-              {oppositionPlayers.map(p => (<li key={p.id}>{p.name}</li>))}
-            </ul>
-          </div>
-        </div>
-        <div className="w-full flex flex-col gap-1">
-          <div className="text-[10px] uppercase tracking-[0.14em] text-center" style={{ color: 'var(--dim)' }}>Cumulative</div>
-          <div className="flex flex-wrap justify-center gap-1.5">
-            {[...state.players].sort((a, b) => b.score - a.score).map(p => (
-              <span
-                key={p.id}
-                className="text-xs px-2 py-1 rounded-full"
-                style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', color: 'var(--fg-soft)' }}
-              >
-                {p.name} <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{p.score}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-        {isHost ? (
-          <button
-            onClick={() => handleDispatch({ type: 'START_ROUND' })}
-            className="btn-accent px-6 py-2.5 rounded-xl text-sm sm:text-base font-semibold"
-          >
-            Next Round
-          </button>
-        ) : (
-          <div className="text-xs sm:text-sm animate-pulse" style={{ color: 'var(--fg-soft)' }}>Waiting for host</div>
-        )}
       </div>
     );
   }

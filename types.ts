@@ -32,7 +32,6 @@ export interface CompletedTrick {
   isLast?: boolean;
 }
 
-/** team is null until partners are revealed at round end. */
 export interface Player {
   id: number;
   name: string;
@@ -42,10 +41,6 @@ export interface Player {
   hand: Card[];
   capturedCards: Card[];
   tricksWon: number;
-  /** Cumulative game points across rounds. */
-  score: number;
-  /** Round-only team assignment, null until partner cards are resolved. */
-  roundTeam: 0 | 1 | null;
 }
 
 export interface Spectator {
@@ -59,7 +54,6 @@ export type GamePhase =
   | 'CHOOSING_TRUMP'
   | 'CALLING_PARTNERS'
   | 'PLAYING'
-  | 'ROUND_OVER'
   | 'GAME_OVER';
 
 export interface GameState {

@@ -10,7 +10,6 @@ import {
   handSizeInitial, handSizeFull, numTricks,
   MIN_BID, MAX_BID,
   partnerCardsForBid,
-  WINNING_GAME_POINTS,
   SUIT_NAMES,
 } from './rules';
 
@@ -84,8 +83,6 @@ export function makeEmptyPlayer(id: number, name: string, isHuman: boolean, peer
     hand: [],
     capturedCards: [],
     tricksWon: 0,
-    score: 0,
-    roundTeam: null,
     isOnline: true,
   };
 }
@@ -190,17 +187,9 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
     case 'START_ROUND': {
       const numPlayers = state.numPlayers;
       const deck = shuffleDeck(createDeck(numPlayers));
-      const isFromRoundOver = state.gamePhase === 'ROUND_OVER';
-      const isFirstRound = state.gamePhase === 'LOBBY';
-      let dealerIndex: number;
-      if (isFirstRound) {
-        // First-round dealer is the last seat so player 0 becomes first bidder.
-        dealerIndex = numPlayers - 1;
-      } else if (isFromRoundOver) {
-        dealerIndex = nextClockwise(state.dealerIndex, numPlayers);
-      } else {
-        dealerIndex = state.dealerIndex;
-      }
+      // 350 is a one-round game — every START_ROUND comes from LOBBY. The
+      // dealer sits at the last seat so slot 0 (the host) bids first.
+      const dealerIndex = numPlayers - 1;
       const firstBidder = nextClockwise(dealerIndex, numPlayers);
 
       // First transition out of LOBBY — fill empty slots with bots, keeping
@@ -261,7 +250,6 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
           hand: newHand,
           capturedCards: [],
           tricksWon: 0,
-          roundTeam: null,
         };
       });
 
@@ -420,15 +408,11 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
       // Identify partners: any non-bidder holding at least one called card.
       const partnerIds = new Set(resolved.map(c => c.id));
       const teamIndices: number[] = [state.bidWinner];
-      const updatedPlayers = state.players.map((p, i) => {
-        if (i === state.bidWinner) return { ...p, roundTeam: 0 as 0 | 1 };
-        const isPartner = p.hand.some(c => partnerIds.has(c.id));
-        if (isPartner) {
-          teamIndices.push(i);
-          return { ...p, roundTeam: 0 as 0 | 1 };
-        }
-        return { ...p, roundTeam: 1 as 0 | 1 };
-      });
+      for (let i = 0; i < state.players.length; i++) {
+        if (i === state.bidWinner) continue;
+        const p = state.players[i];
+        if (p.hand.some(c => partnerIds.has(c.id))) teamIndices.push(i);
+      }
 
       const calledStr = resolved.map(c => cardStr(c)).join(', ');
       let log = logPush(state.gameLog, `${bidder.name} called ${calledStr}`);
@@ -438,7 +422,6 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
         ...state,
         partnerCards: resolved,
         bidderTeamIndices: teamIndices,
-        players: updatedPlayers,
         gamePhase: 'PLAYING',
         currentTurn: state.bidWinner,
         trickLeader: state.bidWinner,
@@ -534,6 +517,8 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
     }
 
     case 'END_ROUND': {
+      // 350 is a one-shot game: a single round resolves into GAME_OVER.
+      // No game-point accumulation, no carry-over between sessions.
       const bidderTeam = new Set(state.bidderTeamIndices);
       const bidderPts = state.players
         .filter(p => bidderTeam.has(p.id))
@@ -545,25 +530,13 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
       const target = state.bidValue;
       const bidderMade = bidderPts >= target;
 
-      // +1 game point per player on the winning side.
-      const newPlayers = state.players.map(p => {
-        const onBidderSide = bidderTeam.has(p.id);
-        const won = bidderMade ? onBidderSide : !onBidderSide;
-        return {
-          ...p,
-          score: p.score + (won ? 1 : 0),
-        };
-      });
-
-      const isGameOver = newPlayers.some(p => p.score >= WINNING_GAME_POINTS);
-
       const bidderName = state.players[state.bidWinner]?.name ?? 'Bidder';
       const partnerNames = state.bidderTeamIndices
         .filter(i => i !== state.bidWinner)
         .map(i => state.players[i].name)
         .join(', ') || 'no partners';
 
-      let nextLog = logPush(state.gameLog, 'Round over');
+      let nextLog = logPush(state.gameLog, 'Game over');
       nextLog = logPush(nextLog, `Bidder team scored ${bidderPts} of ${target}`);
       nextLog = logPush(nextLog, `Opposition scored ${oppPts}`);
       nextLog = logPush(nextLog, `${bidderName} ${bidderMade ? 'made the bid' : 'missed the bid'}`);
@@ -571,8 +544,7 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
 
       return {
         ...state,
-        players: newPlayers,
-        gamePhase: isGameOver ? 'GAME_OVER' : 'ROUND_OVER',
+        gamePhase: 'GAME_OVER',
         roundScores: { bidderTeam: bidderPts, opposition: oppPts },
         gameLog: nextLog,
       };
@@ -588,6 +560,8 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
       if (!allReady) {
         return { ...state, readyForLobbyIndices: Array.from(ready) };
       }
+      // Full reset: lobby phase, blank hands and captures, only the room
+      // identity and player names/peerIds carry across.
       return {
         ...buildInitialState(state.numPlayers),
         roomId: state.roomId,
@@ -596,8 +570,6 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
           hand: [],
           capturedCards: [],
           tricksWon: 0,
-          score: 0,
-          roundTeam: null,
         })),
       };
     }

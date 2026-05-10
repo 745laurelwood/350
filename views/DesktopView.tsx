@@ -30,7 +30,7 @@ export const DesktopView: React.FC = () => {
           style={{ zIndex: Z_HUD, top: 'var(--safe-t)' }}
         >
           <div className="pointer-events-auto">
-            <HUD state={state} isMultiplayer={isMultiplayer} roomId={state.roomId || ''} myIndex={myIndex} />
+            <HUD state={state} isMultiplayer={isMultiplayer} roomId={state.roomId || ''} />
           </div>
           <div className="pointer-events-auto flex justify-end">
             <GameLog entries={state.gameLog} logEndRef={logEndRef} />

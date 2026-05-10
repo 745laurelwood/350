@@ -75,13 +75,6 @@ export const partnerCardsForBid = (bid: number): number => {
 };
 
 // ============================================================
-// GAME-WIN CONDITION
-// ============================================================
-
-/** First player to reach this many cumulative game points wins the match. */
-export const WINNING_GAME_POINTS = 5;
-
-// ============================================================
 // LABELS
 // ============================================================
 
@@ -115,7 +108,5 @@ PARTNERS: Bidder calls cards from outside their hand. 1 card for ${MIN_BID}–27
 
 PLAY: Bid winner leads. Players must follow suit if possible; otherwise any card may be played. Highest trump wins; otherwise highest card of the led suit. Trick winner leads next.
 
-SCORING: Bidder team must capture ≥ bid in card points to make the bid. If made, each bidder-team player +1 game point. If missed, each opposition player +1 game point.
-
-GAME WIN: First player to +${WINNING_GAME_POINTS} game points wins.
+SCORING: Bidder team must capture ≥ bid in card points to make the bid. If they do, they win the round; otherwise the opposition wins. Each round is a fresh game — no points carry over.
 `.trim();

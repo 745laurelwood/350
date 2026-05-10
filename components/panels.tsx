@@ -6,12 +6,13 @@ import {
   Z_HUD, Z_ACTION_BAR,
 } from '../constants';
 import { MAX_BID, MIN_BID, BID_STEP } from '../rules';
+import { partnersRevealed, teamCardPoints } from '../utils/gameLogic';
 
-/** HUD panel — leader's score, bid, trump, players. */
+/** HUD panel — bid/trump, plus live team scores once partners are revealed. */
 export function HUD({
-  state, isMultiplayer, roomId, myIndex,
+  state, isMultiplayer, roomId,
 }: {
-  state: GameState; isMultiplayer: boolean; roomId: string; myIndex: number;
+  state: GameState; isMultiplayer: boolean; roomId: string;
 }) {
   const [copied, setCopied] = useState(false);
   const copyRoom = () => {
@@ -22,36 +23,33 @@ export function HUD({
     }).catch(() => {});
   };
 
-  const me = state.players[myIndex];
-  const leader = [...state.players].sort((a, b) => b.score - a.score)[0];
-
   const bidder = state.bidWinner >= 0 ? state.players[state.bidWinner] : null;
   const showTrump = !!state.trumpSuit && state.gamePhase !== 'BIDDING' && state.gamePhase !== 'CHOOSING_TRUMP';
+  const teamsVisible = partnersRevealed(state);
+  const teamPts = teamsVisible ? teamCardPoints(state) : null;
 
   return (
     <div className="glass-panel px-3 py-2 sm:px-4 sm:py-3 rounded-2xl isolate" style={{ zIndex: Z_HUD }}>
       <div className="flex items-center gap-2 sm:gap-3">
         <div className="flex items-stretch gap-0.5 rounded-full pill-chip p-0.5 sm:p-1">
-          {me && (
-            <div className="flex flex-col items-center justify-center px-2.5 py-0.5 sm:px-5 sm:py-1 rounded-full bg-[color:var(--bg-2)] ring-1 ring-[color:var(--line)]">
-              <span className="text-[9px] uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>You</span>
-              <span className="font-display text-sm sm:text-base leading-none tabular-nums" style={{ color: 'var(--accent)' }}>
-                {me.score}
-              </span>
-            </div>
-          )}
-          {leader && leader.id !== myIndex && (
+          {teamPts && (
             <>
-              <div className="w-px my-1" style={{ background: 'var(--line)' }} />
               <div className="flex flex-col items-center justify-center px-2.5 py-0.5 sm:px-5 sm:py-1 rounded-full">
-                <span className="text-[9px] uppercase tracking-[0.16em]" style={{ color: 'var(--gold)' }}>Lead</span>
-                <span className="font-display text-sm sm:text-base leading-none tabular-nums" style={{ color: 'var(--gold)' }}>
-                  {leader.score}
+                <span className="text-[9px] uppercase tracking-[0.16em]" style={{ color: 'var(--accent)' }}>Bidder</span>
+                <span className="font-display text-sm sm:text-base leading-none tabular-nums" style={{ color: 'var(--accent)' }}>
+                  {teamPts.bidder}
                 </span>
               </div>
+              <div className="w-px my-1" style={{ background: 'var(--line)' }} />
+              <div className="flex flex-col items-center justify-center px-2.5 py-0.5 sm:px-5 sm:py-1 rounded-full">
+                <span className="text-[9px] uppercase tracking-[0.16em]" style={{ color: 'var(--red)' }}>Opp</span>
+                <span className="font-display text-sm sm:text-base leading-none tabular-nums" style={{ color: 'var(--red)' }}>
+                  {teamPts.opposition}
+                </span>
+              </div>
+              <div className="w-px my-1" style={{ background: 'var(--line)' }} />
             </>
           )}
-          <div className="w-px my-1" style={{ background: 'var(--line)' }} />
           <div className="flex flex-col items-center justify-center px-2.5 py-0.5 sm:px-5 sm:py-1 rounded-full">
             <span className="text-[9px] uppercase tracking-[0.16em]" style={{ color: 'var(--dim)' }}>Bid</span>
             <span

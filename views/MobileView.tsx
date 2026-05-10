@@ -8,6 +8,7 @@ import { useGame } from '../GameContext';
 import { compareCardStrength } from '../rules';
 import { Card } from '../types';
 import { compareSuitForHand, SUIT_SYMBOLS, getRankLabel } from '../constants';
+import { knownTeamFor, partnersRevealed, playerCapturedPoints, teamCardPoints } from '../utils/gameLogic';
 
 const DRAG_THRESHOLD_PX = 6;
 
@@ -57,8 +58,8 @@ export const MobileView: React.FC = () => {
   const me = !isSpectator && bottomIdx !== -1 ? state.players[bottomIdx] : null;
   const bottomPlayerForSpectator = isSpectator && bottomIdx !== -1 ? state.players[bottomIdx] : null;
 
-  const myScore = me?.score ?? 0;
-  const leader = [...state.players].sort((a, b) => b.score - a.score)[0];
+  const teamsVisible = partnersRevealed(state);
+  const teamPts = teamsVisible ? teamCardPoints(state) : null;
 
   const trickCardIds = new Set(state.currentTrick.map(p => p.card.id));
 
@@ -146,17 +147,17 @@ export const MobileView: React.FC = () => {
                 <path d="M5 10v10h14V10" />
               </svg>
             </button>
-            <div className="m-hs-divider" />
-            <div className="m-hs-cell active">
-              <span className="label">You</span>
-              <span className="v">{myScore}</span>
-            </div>
-            {leader && leader.id !== myIndex && (
+            {teamPts && (
               <>
                 <div className="m-hs-divider" />
-                <div className="m-hs-cell gold">
-                  <span className="label">Lead</span>
-                  <span className="v">{leader.score}</span>
+                <div className="m-hs-cell">
+                  <span className="label">Bidder</span>
+                  <span className="v">{teamPts.bidder}</span>
+                </div>
+                <div className="m-hs-divider" />
+                <div className="m-hs-cell b">
+                  <span className="label">Opp</span>
+                  <span className="v">{teamPts.opposition}</span>
                 </div>
               </>
             )}
@@ -182,6 +183,12 @@ export const MobileView: React.FC = () => {
               : null;
             const isBidder = state.bidWinner === i && state.gamePhase !== 'BIDDING' && state.gamePhase !== 'CHOOSING_TRUMP';
             const oppSweepCards = sweepingToPlayer === i ? opp.capturedCards.slice(-state.numPlayers) : [];
+            const oppTeam = knownTeamFor(state, i);
+            const oppNameColor =
+              oppTeam === 'bidder' ? 'var(--accent)'
+              : oppTeam === 'opposition' ? 'var(--red)'
+              : undefined;
+            const oppPts = playerCapturedPoints(opp);
             return (
               <div key={i} className={`m-opp ${isTurn ? 'turn' : ''} ${isBidder ? 'bidder' : ''}`}>
                 {oppSweepCards.length > 0 && (
@@ -210,12 +217,12 @@ export const MobileView: React.FC = () => {
                   </div>
                 )}
                 <div className="av">{opp.name?.[0]?.toUpperCase() || '?'}</div>
-                <div className="name">
+                <div className="name" style={oppNameColor ? { color: oppNameColor } : undefined}>
                   {opp.name}
                   {isBidder && <span style={{ marginLeft: 4, color: 'var(--gold)', fontSize: 10 }}>★</span>}
                 </div>
                 <div className="held">
-                  {opp.hand.length}c · {opp.tricksWon}t · <span style={{ color: 'var(--gold)' }}>{opp.score}</span>
+                  <span style={{ color: 'var(--fg-soft)' }}>{oppPts}</span> pts
                 </div>
               </div>
             );
@@ -288,7 +295,16 @@ export const MobileView: React.FC = () => {
               <div className={`av ${state.bidWinner === bottomIdx && state.gamePhase !== 'BIDDING' && state.gamePhase !== 'CHOOSING_TRUMP' ? 'bidder' : ''}`}>
                 {me.name?.[0]?.toUpperCase() || 'Y'}
               </div>
-              <div className="who">{me.name}</div>
+              {(() => {
+                const myTeam = knownTeamFor(state, bottomIdx);
+                const myNameColor =
+                  myTeam === 'bidder' ? 'var(--accent)'
+                  : myTeam === 'opposition' ? 'var(--red)'
+                  : undefined;
+                return (
+                  <div className="who" style={myNameColor ? { color: myNameColor } : undefined}>{me.name}</div>
+                );
+              })()}
               {(isMyPlayTurn || isMyBidTurn) && (
                 <span
                   className="animate-accent-pulse"
@@ -311,7 +327,7 @@ export const MobileView: React.FC = () => {
                   onClick={() => setShowMyCaptures(true)}
                   style={{ fontSize: 11, padding: '2px 8px', borderRadius: 999, background: 'var(--bg-1)', border: '1px solid var(--line)', color: 'var(--fg-soft)' }}
                 >
-                  {me.tricksWon} tricks
+                  {playerCapturedPoints(me)} pts
                 </button>
               )}
             </div>

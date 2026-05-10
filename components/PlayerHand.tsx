@@ -3,6 +3,7 @@ import { CardComponent } from './CardComponent';
 import { useGame } from '../GameContext';
 import { compareSuitForHand } from '../constants';
 import { compareCardStrength } from '../rules';
+import { knownTeamFor, playerCapturedPoints } from '../utils/gameLogic';
 import { Slot, isTopSlot } from '../utils/positions';
 
 interface PlayerHandProps {
@@ -46,6 +47,13 @@ export const PlayerHand: React.FC<PlayerHandProps> = ({ playerIndex, slot, compa
 
   const trickCardIds = new Set(state.currentTrick.map(p => p.card.id));
 
+  const knownTeam = knownTeamFor(state, playerIndex);
+  const teamColor =
+    knownTeam === 'bidder' ? 'var(--accent)'
+    : knownTeam === 'opposition' ? 'var(--red)'
+    : 'var(--fg)';
+  const pts = playerCapturedPoints(player);
+
   return (
     <div className="relative">
       {sweepCards.length > 0 && (
@@ -73,26 +81,20 @@ export const PlayerHand: React.FC<PlayerHandProps> = ({ playerIndex, slot, compa
                 onClick={() => setShowMyCaptures(true)}
                 className="text-xs sm:text-sm px-2 py-0.5 rounded-full whitespace-nowrap transition-colors cursor-pointer opp-count"
                 style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', color: 'var(--fg-soft)' }}
-                title="View your captured cards"
+                title="View your captured cards · click to inspect"
               >
-                {player.tricksWon} {player.tricksWon === 1 ? 'trick' : 'tricks'}
+                {pts} pts
               </button>
             ) : (
               <span
                 className="text-xs sm:text-sm px-2 py-0.5 rounded-full whitespace-nowrap opp-count"
                 style={{ background: 'var(--bg-1)', border: '1px solid var(--line)', color: 'var(--dim)' }}
+                title="Card points captured"
               >
-                {player.tricksWon} {player.tricksWon === 1 ? 'trick' : 'tricks'}
+                {pts} pts
               </span>
             )}
-            <span className="text-base sm:text-xl md:text-2xl opp-name">{player.name}</span>
-            <span
-              className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded-md uppercase tracking-wider"
-              style={{ background: 'rgba(216,176,97,0.15)', color: 'var(--gold)' }}
-              title="Game points"
-            >
-              {player.score}
-            </span>
+            <span className="text-base sm:text-xl md:text-2xl opp-name" style={{ color: teamColor }}>{player.name}</span>
             {isBidder && (
               <span
                 className="text-[10px] sm:text-xs px-1.5 py-0.5 rounded-md uppercase tracking-wider"
@@ -138,7 +140,6 @@ export const PlayerHand: React.FC<PlayerHandProps> = ({ playerIndex, slot, compa
             .sort((a, b) => a.suit === b.suit ? compareCardStrength(b, a) : compareSuitForHand(a.suit, b.suit));
           const showEmpty = visibleHand.length === 0
             && state.gamePhase !== 'GAME_OVER'
-            && state.gamePhase !== 'ROUND_OVER'
             && state.gamePhase !== 'BIDDING'
             && state.gamePhase !== 'CHOOSING_TRUMP';
           const emptyPlaceholder = (
