@@ -19,7 +19,7 @@ import { GameProvider, GameContextValue, PositionedPlayer } from './GameContext'
 import { MobileView } from './views/MobileView';
 import { DesktopView } from './views/DesktopView';
 import { Lobby } from './views/Lobby';
-import { getPlayableCards, getTrickWinner } from './utils/gameLogic';
+import { bidderCannotMakeBid, getPlayableCards, getTrickWinner } from './utils/gameLogic';
 import { slotFor, slotOrder, Slot } from './utils/positions';
 
 const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
@@ -471,7 +471,14 @@ export default function App() {
           if (data.originatorPeerId === myPeerId) return;
           const claimedIdx = data.payload?.playerIndex;
           const seated = stateRef.current.players[claimedIdx];
-          if (!seated || seated.peerId !== data.originatorPeerId) return;
+          if (!seated) return;
+          // Accept the move if either:
+          //   - the seated human's peerId matches the originator (normal case), or
+          //   - the seat is a bot and the host is the originator (host drives bots).
+          // The host's peerId is the roomId by convention.
+          const isOwnerMove = !!seated.peerId && seated.peerId === data.originatorPeerId;
+          const isHostBotMove = !seated.isHuman && data.originatorPeerId === stateRef.current.roomId;
+          if (!isOwnerMove && !isHostBotMove) return;
           executeOrchestratedPlay(data.payload);
         }
       } catch (e) { console.error('Client JSON Parse Error:', e); }
@@ -568,12 +575,16 @@ export default function App() {
 
       trickCompletingRef.current = false;
 
-      // After last trick, finalize round (host only).
+      // Finalize the round (host only) either after the last trick or as soon
+      // as the bidder team can no longer reach the target (opposition has
+      // captured > 350 - bid and all partners are revealed).
       const postState = stateRef.current;
+      const lastTrickPlayed = postState.completedTricks.length >= numTricks(postState.numPlayers);
+      const cannotMakeBid = bidderCannotMakeBid(postState);
       if (
-        postState.completedTricks.length >= numTricks(postState.numPlayers) &&
         postState.gamePhase === 'PLAYING' &&
-        (!isMultiplayer || isHost)
+        (!isMultiplayer || isHost) &&
+        (lastTrickPlayed || cannotMakeBid)
       ) {
         await new Promise(r => setTimeout(r, 500));
         dispatch({ type: 'END_ROUND' });

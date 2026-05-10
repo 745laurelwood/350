@@ -536,7 +536,11 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
         .map(i => state.players[i].name)
         .join(', ') || 'no partners';
 
+      const tricksRemaining = numTricks(state.numPlayers) - state.completedTricks.length;
       let nextLog = logPush(state.gameLog, 'Game over');
+      if (tricksRemaining > 0) {
+        nextLog = logPush(nextLog, `Bidder team can no longer make the bid; ending early.`);
+      }
       nextLog = logPush(nextLog, `Bidder team scored ${bidderPts} of ${target}`);
       nextLog = logPush(nextLog, `Opposition scored ${oppPts}`);
       nextLog = logPush(nextLog, `${bidderName} ${bidderMade ? 'made the bid' : 'missed the bid'}`);

@@ -1,5 +1,5 @@
 import { Card, GameState, Player, Suit, TrickPlay } from '../types';
-import { getTrickStrength, getPointsForCard } from '../rules';
+import { getTrickStrength, getPointsForCard, TOTAL_DECK_POINTS } from '../rules';
 
 /** Cards a player may legally play given the current trick state. */
 export const getPlayableCards = (
@@ -59,14 +59,47 @@ export const partnersRevealed = (state: GameState): boolean => {
   return state.partnerCards.every(c => played.has(c.id));
 };
 
-/** Returns 'bidder' | 'opposition' if the team is known to everyone yet,
- *  otherwise null. Useful for team-tinted UI bits. */
+/** Returns 'bidder' | 'opposition' if a player's team is publicly known by
+ *  this point in the round, otherwise null. The reveal is progressive:
+ *   - the bidder themselves is "blue" the moment the auction settles;
+ *   - a partner becomes "blue" as soon as they play one of the called cards;
+ *   - other players stay neutral until every called card has surfaced, at
+ *     which point the un-blued players are exposed as opposition;
+ *   - on GAME_OVER everything is laid bare. */
 export const knownTeamFor = (
   state: GameState,
   playerIndex: number,
 ): 'bidder' | 'opposition' | null => {
-  if (!partnersRevealed(state)) return null;
-  return state.bidderTeamIndices.includes(playerIndex) ? 'bidder' : 'opposition';
+  if (state.bidWinner < 0) return null;
+
+  if (state.gamePhase === 'GAME_OVER' && state.bidderTeamIndices.length > 0) {
+    return state.bidderTeamIndices.includes(playerIndex) ? 'bidder' : 'opposition';
+  }
+
+  if (playerIndex === state.bidWinner) return 'bidder';
+
+  if (state.bidderTeamIndices.length === 0) return null;
+
+  if (state.bidderTeamIndices.includes(playerIndex)) {
+    // Reveal a partner once they've played any of the called cards.
+    const calledIds = new Set(state.partnerCards.map(c => c.id));
+    const playedByMe = (() => {
+      for (const t of state.completedTricks) {
+        for (const p of t.plays) {
+          if (p.playerIndex === playerIndex && calledIds.has(p.card.id)) return true;
+        }
+      }
+      for (const p of state.currentTrick) {
+        if (p.playerIndex === playerIndex && calledIds.has(p.card.id)) return true;
+      }
+      return false;
+    })();
+    return playedByMe ? 'bidder' : null;
+  }
+
+  // Not on the bidder team. Reveal as opposition only when the bidder team
+  // is fully exposed (every called card has been played).
+  return partnersRevealed(state) ? 'opposition' : null;
 };
 
 /** Live point totals split by team. Both sides count, but the UI should only
@@ -81,4 +114,14 @@ export const teamCardPoints = (state: GameState): { bidder: number; opposition: 
     else opposition += pts;
   }
   return { bidder, opposition };
+};
+
+/** True once the bidder team is fully exposed and the opposition has
+ *  already captured strictly more than (350 - bid) points: the bidder team
+ *  can never reach their target, so the round is over. */
+export const bidderCannotMakeBid = (state: GameState): boolean => {
+  if (state.bidValue <= 0) return false;
+  if (!partnersRevealed(state)) return false;
+  const { opposition } = teamCardPoints(state);
+  return opposition > TOTAL_DECK_POINTS - state.bidValue;
 };

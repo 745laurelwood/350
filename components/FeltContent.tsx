@@ -12,7 +12,7 @@ import {
   compareCardStrength,
 } from '../rules';
 import { clearSession } from '../utils/session';
-import { Slot } from '../utils/positions';
+import { Slot, slotOrder } from '../utils/positions';
 
 /** Felt centre: bidding / trump / partner-call / current-trick. */
 export const FeltContent: React.FC = () => {
@@ -38,6 +38,7 @@ export const FeltContent: React.FC = () => {
     const totalHumans = humanPlayers.length;
     const readyHumans = humanPlayers.filter(p => readySet.has(p.id)).length;
     const iAmReady = readySet.has(myIndex);
+    const endedEarly = state.completedTricks.length < numTricks(state.numPlayers);
 
     return (
       <div className="flex flex-col items-center gap-4 sm:gap-5 px-4 py-6 sm:py-8 max-w-xl w-full">
@@ -55,6 +56,11 @@ export const FeltContent: React.FC = () => {
           <div className="text-xs sm:text-sm mt-1" style={{ color: 'var(--fg-soft)' }}>
             Target {bidValue} · Bidder team captured {roundScores.bidderTeam}
           </div>
+          {endedEarly && (
+            <div className="text-xs sm:text-sm mt-1" style={{ color: 'var(--red)' }}>
+              Bidder team can no longer reach the target. Game called early.
+            </div>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full">
           <div
@@ -228,20 +234,24 @@ export const FeltContent: React.FC = () => {
     />;
   }
 
-  // ── PLAYING: arrange trick cards by slot around the centre ──
+  // ── PLAYING: arrange trick cards on a polar layout around the centre ──
+  // Slots in slotOrder() walk counter-clockwise around the table starting
+  // from "me" at the bottom, which maps cleanly to angles offset from south.
   const slotFor = (playerIndex: number): Slot => {
     const p = positions.find(p => p.playerIndex === playerIndex);
     return p?.slot ?? 'top-center';
   };
-
-  const positionStyle: Record<Slot, string> = {
-    bottom: 'translate-y-14 sm:translate-y-14 md:translate-y-20',
-    'top-center': '-translate-y-14 sm:-translate-y-14 md:-translate-y-20',
-    'top-left': '-translate-x-12 -translate-y-12 sm:-translate-x-16 sm:-translate-y-12 md:-translate-x-24 md:-translate-y-16',
-    'top-right': 'translate-x-12 -translate-y-12 sm:translate-x-16 sm:-translate-y-12 md:translate-x-24 md:-translate-y-16',
-    left:   '-translate-x-16 sm:-translate-x-20 md:-translate-x-28',
-    right:  'translate-x-16 sm:translate-x-20 md:translate-x-28',
+  const order = slotOrder(state.numPlayers);
+  const offsetFor = (slot: Slot): { x: number; y: number } => {
+    const idx = order.indexOf(slot);
+    const angle = (Math.PI / 2) + (idx / state.numPlayers) * 2 * Math.PI;
+    return { x: Math.cos(angle), y: Math.sin(angle) };
   };
+  // A larger radius for 6 players keeps neighbour cards from crowding each
+  // other; 5 players have more angular gap so can sit a little tighter.
+  const trickRadius = state.numPlayers === 6
+    ? 'clamp(60px, 11vmin, 120px)'
+    : 'clamp(54px, 10vmin, 110px)';
 
   return (
     <div className="relative w-full min-h-[160px] sm:min-h-[220px] flex items-center justify-center">
@@ -256,10 +266,14 @@ export const FeltContent: React.FC = () => {
       )}
       {state.currentTrick.map(tp => {
         const slot = slotFor(tp.playerIndex);
+        const { x, y } = offsetFor(slot);
         return (
           <div
             key={tp.card.id}
-            className={`absolute transition-transform ${positionStyle[slot]}`}
+            className="absolute transition-transform"
+            style={{
+              transform: `translate(calc(${x.toFixed(4)} * ${trickRadius}), calc(${y.toFixed(4)} * ${trickRadius}))`,
+            }}
           >
             <CardComponent card={tp.card} faceDown={false} />
           </div>
