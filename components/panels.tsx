@@ -8,7 +8,7 @@ import {
 import { MAX_BID, MIN_BID, BID_STEP } from '../rules';
 import { partnersRevealed, teamCardPoints } from '../utils/gameLogic';
 
-/** HUD panel — bid/trump, plus live team scores once partners are revealed. */
+/** HUD panel: bid/trump, plus live team scores once partners are revealed. */
 export function HUD({
   state, isMultiplayer, roomId,
 }: {
@@ -105,7 +105,7 @@ export function HUD({
   );
 }
 
-/** "Last move" banner — pinned to the bottom edge of the table felt. */
+/** "Last move" banner: pinned to the bottom edge of the table felt. */
 export function LastMoveBanner({ message }: { message: string }) {
   return (
     <div
@@ -123,7 +123,7 @@ export function LastMoveBanner({ message }: { message: string }) {
   );
 }
 
-/** Game log — pill chip expands to side panel. */
+/** Game log: pill chip expands to side panel. */
 export function GameLog({ entries, logEndRef }: { entries: string[]; logEndRef: React.RefObject<HTMLDivElement | null> }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const latest = entries[entries.length - 1] ?? '';
@@ -375,7 +375,7 @@ export function BiddingControls({
   );
 }
 
-/** Chat room — pill chip expands to side panel. */
+/** Chat room: pill chip expands to side panel. */
 export function ChatRoom({ messages, myIndex, unread, onOpen, onClose, onSend }: {
   messages: ChatMessage[];
   myIndex: number;

@@ -33,7 +33,7 @@ export const Rulebook: React.FC<RulebookProps> = ({ onClose }) => {
         </button>
 
         <header className="mb-8 pt-2">
-          <h1 className="font-display text-3xl sm:text-4xl mb-1" style={{ color: 'var(--accent)' }}>350 — Rulebook</h1>
+          <h1 className="font-display text-3xl sm:text-4xl mb-1" style={{ color: 'var(--accent)' }}>350 Rulebook</h1>
           <p className="text-xs sm:text-sm uppercase tracking-[0.2em]" style={{ color: 'var(--dim)' }}>
             A 5/6-player partnership trick-taking card game
           </p>
@@ -42,7 +42,7 @@ export const Rulebook: React.FC<RulebookProps> = ({ onClose }) => {
         <section className="mb-8">
           <h2 className="font-display text-xl sm:text-2xl mb-3" style={{ color: 'var(--fg)' }}>Overview</h2>
           <p className="mb-3" style={{ color: 'var(--fg-soft)' }}>
-            350 is played by <strong>5 or 6</strong> players. Partnerships are <em>not</em> fixed —
+            350 is played by <strong>5 or 6</strong> players. Partnerships are <em>not</em> fixed;
             they are formed each round through "calling" cards. The deck contains <strong>350 total card
             points</strong>, and the bidder's team must capture at least their bid in card points to win the round.
           </p>
@@ -122,7 +122,7 @@ export const Rulebook: React.FC<RulebookProps> = ({ onClose }) => {
           <p className="mb-3" style={{ color: 'var(--fg-soft)' }}>
             Starting with the player to the dealer's left, each player either passes or makes a bid.
             Legal bids range from <strong>{MIN_BID}</strong> to <strong>{MAX_BID}</strong>. Each new bid must
-            strictly exceed the previous high. A pass is permanent — the player takes no further part in the auction.
+            strictly exceed the previous high. A pass is permanent; the player takes no further part in the auction.
           </p>
           <p style={{ color: 'var(--fg-soft)' }}>
             The last remaining bidder wins the auction and becomes the round's <strong>bidder</strong>.
@@ -152,7 +152,7 @@ export const Rulebook: React.FC<RulebookProps> = ({ onClose }) => {
           <p className="mb-3" style={{ color: 'var(--fg-soft)' }}>
             The bidder leads the first trick. Players play one card in turn, clockwise.
             Players <strong>must follow the led suit</strong> if they hold any. Otherwise, they may play any
-            card — including a trump.
+            card, including a trump.
           </p>
           <p style={{ color: 'var(--fg-soft)' }}>
             The highest trump played wins the trick. If no trumps were played, the highest card of the led suit
@@ -168,7 +168,7 @@ export const Rulebook: React.FC<RulebookProps> = ({ onClose }) => {
             the game. Otherwise, the opposition wins.
           </p>
           <p className="mt-3" style={{ color: 'var(--fg-soft)' }}>
-            Each round is a fresh game — no score carries over. After the result, everyone returns to
+            Each round is a fresh game; no score carries over. After the result, everyone returns to
             the lobby and a new game begins.
           </p>
         </section>

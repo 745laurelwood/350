@@ -14,7 +14,7 @@ import {
 import { clearSession } from '../utils/session';
 import { Slot } from '../utils/positions';
 
-/** Felt centre — bidding / trump / partner-call / current-trick. */
+/** Felt centre: bidding / trump / partner-call / current-trick. */
 export const FeltContent: React.FC = () => {
   const {
     state, myIndex, isHost, isSpectator, handleDispatch,
@@ -270,7 +270,7 @@ export const FeltContent: React.FC = () => {
 };
 
 // ============================================================
-// Calling-partners panel — picker for the bidder, "waiting" for everyone else.
+// Calling-partners panel: picker for the bidder, "waiting" for everyone else.
 // ============================================================
 
 const PARTNER_SUIT_ORDER: Suit[] = [Suit.Spades, Suit.Hearts, Suit.Clubs, Suit.Diamonds];
@@ -351,7 +351,7 @@ const CallingPartnersFelt: React.FC<{
       className="flex flex-col items-center gap-1.5 sm:gap-2 px-1 py-1 sm:py-2 w-full max-h-full overflow-y-auto no-scrollbar"
     >
       <div className="text-[10px] sm:text-xs uppercase tracking-[0.2em]" style={{ color: 'var(--dim)' }}>
-        Call Your Partners — pick{' '}
+        Call Your Partners: pick{' '}
         <span className="font-semibold" style={{ color: 'var(--accent)' }}>{partnersRequired}</span>
       </div>
 

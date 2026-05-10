@@ -568,7 +568,7 @@ export default function App() {
 
       trickCompletingRef.current = false;
 
-      // After last trick, finalize round — host only.
+      // After last trick, finalize round (host only).
       const postState = stateRef.current;
       if (
         postState.completedTricks.length >= numTricks(postState.numPlayers) &&
@@ -624,7 +624,7 @@ export default function App() {
     const chooser = state.players[state.bidWinner];
     if (!chooser || chooser.isHuman) return;
     if (chooser.peerId && !state.trumpSuit) {
-      // Wait for human to pick — but this branch runs only for non-humans.
+      // Wait for the human pick. This branch only runs for non-humans.
     }
     if (state.trumpSuit) return; // already chose, deal will run below
     if (aiThinkingRef.current) return;
@@ -995,8 +995,8 @@ function aiChooseCallCards(
   const required = partnerCardsForBid(bidValue);
   const bidder = players[bidderIdx];
   const myHandIds = new Set(bidder.hand.map(c => c.id));
-  // Pool of cards outside bidder's hand. Prefer high-point cards
-  // — Aces, Kings, especially the 3 of Spades if not held.
+  // Pool of cards outside bidder's hand. Prefer high-point cards:
+  // Aces, Kings, especially the 3 of Spades if not held.
   const pool: Card[] = [];
   for (const p of players) {
     if (p.id === bidderIdx) continue;

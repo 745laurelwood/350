@@ -6,7 +6,7 @@ A web-based version of **350**, a 5- or 6-player partnership trick-taking card g
 
 ### Players and cards
 
-350 is played by **five or six** players. Partnerships are not fixed — they are formed each round through "calling" cards. The game uses a standard 52-card deck with the small cards removed:
+350 is played by **five or six** players. Partnerships are not fixed; they are formed each round through "calling" cards. The game uses a standard 52-card deck with the small cards removed:
 
 - **5 players**: remove the 2 of Hearts and 2 of Diamonds (50 cards).
 - **6 players**: remove all four 2s (48 cards).
@@ -33,7 +33,7 @@ Deal and play are clockwise. The dealer rotates clockwise each round. Initial de
 - The player to the dealer's left bids first.
 - Legal bids range from **220** to **350**.
 - Each new bid must strictly exceed the previous high bid.
-- A pass is permanent — once you pass, you are out of the auction.
+- A pass is permanent. Once you pass, you are out of the auction.
 - If everyone passes, the hand is redealt by the next dealer.
 
 The last remaining bidder wins the auction. They choose a **trump suit**, openly. The dealer then deals the rest of the deck so that everyone has a full hand of **10** (5p) or **8** (6p) cards.

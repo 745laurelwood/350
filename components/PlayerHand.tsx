@@ -150,7 +150,7 @@ export const PlayerHand: React.FC<PlayerHandProps> = ({ playerIndex, slot, compa
               Empty
             </div>
           );
-          // Tighter overlap for top opponents — the strip needs to fit several
+          // Tighter overlap for top opponents: the strip needs to fit several
           // hands side-by-side without overlapping their neighbours.
           const tightOverlap = !isMe && (isTopSlot(slot) || compact);
           const overlapClass = tightOverlap

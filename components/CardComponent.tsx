@@ -16,7 +16,7 @@ interface CardProps {
   flipId?: string;
 }
 
-/** A single playing card — face-up or face-down. */
+/** A single playing card: face-up or face-down. */
 export const CardComponent: React.FC<CardProps> = ({
   card,
   onClick,

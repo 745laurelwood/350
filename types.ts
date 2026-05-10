@@ -7,7 +7,7 @@ export enum Suit {
 
 export interface Card {
   suit: Suit;
-  rank: number; // 2..10, 11 (J), 12 (Q), 13 (K), 14 (A) — Ace high
+  rank: number; // 2..10, 11 (J), 12 (Q), 13 (K), 14 (A). Ace high
   id: string;
 }
 
@@ -84,10 +84,10 @@ export interface GameState {
   /** Cards called by the bidder. Public information. */
   partnerCards: Card[];
   /** Indices of players on the bidder team (bidder + holders of called cards).
-   *  Empty until CALL_PARTNERS resolves. Not redacted on the wire — every
+   *  Empty until CALL_PARTNERS resolves. Not redacted on the wire: every
    *  client computes this from public partnerCards + their own hand contents
    *  during play would be unreliable, so we keep it canonical here, but the
-   *  UI hides the assignment until ROUND_OVER. */
+   *  UI hides the assignment until GAME_OVER. */
   bidderTeamIndices: number[];
 
   // Current trick

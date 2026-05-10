@@ -1,4 +1,4 @@
-// rules.ts — Single source of truth for 350 game rules.
+// rules.ts: single source of truth for 350 game rules.
 
 import { Card, Suit } from './types';
 
@@ -108,5 +108,5 @@ PARTNERS: Bidder calls cards from outside their hand. 1 card for ${MIN_BID}–27
 
 PLAY: Bid winner leads. Players must follow suit if possible; otherwise any card may be played. Highest trump wins; otherwise highest card of the led suit. Trick winner leads next.
 
-SCORING: Bidder team must capture ≥ bid in card points to make the bid. If they do, they win the round; otherwise the opposition wins. Each round is a fresh game — no points carry over.
+SCORING: Bidder team must capture ≥ bid in card points to make the bid. If they do, they win the round; otherwise the opposition wins. Each round is a fresh game; no points carry over.
 `.trim();

@@ -187,12 +187,12 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
     case 'START_ROUND': {
       const numPlayers = state.numPlayers;
       const deck = shuffleDeck(createDeck(numPlayers));
-      // 350 is a one-round game — every START_ROUND comes from LOBBY. The
+      // 350 is a one-round game; every START_ROUND comes from LOBBY. The
       // dealer sits at the last seat so slot 0 (the host) bids first.
       const dealerIndex = numPlayers - 1;
       const firstBidder = nextClockwise(dealerIndex, numPlayers);
 
-      // First transition out of LOBBY — fill empty slots with bots, keeping
+      // First transition out of LOBBY: fill empty slots with bots, keeping
       // the host at slot 0. Pre-named bots from single-player are reused.
       let seated: Player[];
       if (state.gamePhase === 'LOBBY') {
@@ -221,7 +221,7 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
             slots.push({ ...exact, id: i });
             continue;
           }
-          // No human at this slot — try the overflow queue first, otherwise a bot.
+          // No human at this slot. Try the overflow queue first, otherwise a bot.
           const overflowHuman = remainingHumans.shift();
           if (overflowHuman) {
             seatedHumanIds.add(overflowHuman.id);
@@ -335,7 +335,7 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
       if (nextState.currentBid == null && newPassed.length === nextState.numPlayers) {
         return {
           ...nextState,
-          gameLog: logPush(log, 'All players passed — redealing'),
+          gameLog: logPush(log, 'All players passed, redealing'),
         };
       }
 
@@ -416,7 +416,7 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
 
       const calledStr = resolved.map(c => cardStr(c)).join(', ');
       let log = logPush(state.gameLog, `${bidder.name} called ${calledStr}`);
-      log = logPush(log, `Bidder leads — partners revealed as their cards are played`);
+      log = logPush(log, `Bidder leads; partners revealed as their cards are played`);
 
       return {
         ...state,
