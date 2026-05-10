@@ -127,7 +127,12 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
         ...init,
         roomId,
         players: Array.from({ length: numPlayers }, (_, i) =>
-          makeEmptyPlayer(i, i === 0 ? (hostName || 'You (Host)') : EMPTY_SLOT_NAME, false),
+          makeEmptyPlayer(
+            i,
+            i === 0 ? (hostName || 'You (Host)') : EMPTY_SLOT_NAME,
+            i === 0,
+            i === 0 ? roomId : undefined,
+          ),
         ),
       };
     }
