@@ -161,7 +161,7 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
 
     case 'START_GAME': {
       const { playerName, numPlayers } = action.payload;
-      const botNames = pickBotNames(numPlayers - 1);
+      const botNames = pickBotNames(numPlayers - 1, [playerName]);
       const init = buildInitialState(numPlayers);
       return {
         ...init,
@@ -214,6 +214,13 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
         for (const p of state.players) {
           if (p.isHuman && p.id >= numPlayers) remainingHumans.push(p);
         }
+        // Track every name already at the table so fresh-bot picks never
+        // collide with humans or with previously assigned bots.
+        const takenNames = new Set<string>();
+        for (const p of state.players) {
+          if (p.isHuman && p.name) takenNames.add(p.name);
+        }
+        for (const b of botPool) takenNames.add(b.name);
         for (let i = 0; i < numPlayers; i++) {
           const exact = humansById.get(i);
           if (exact && !seatedHumanIds.has(exact.id)) {
@@ -234,8 +241,11 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
             slots.push({ ...base, id: i });
             continue;
           }
-          // Last resort: fresh bot.
-          slots.push(makeEmptyPlayer(i, pickBotNames(1)[0], false));
+          // Last resort: fresh bot. Exclude every name already in use so we
+          // don't end up with two bots sharing the same name.
+          const freshName = pickBotNames(1, takenNames)[0] ?? `Bot ${i + 1}`;
+          takenNames.add(freshName);
+          slots.push(makeEmptyPlayer(i, freshName, false));
         }
         seated = slots;
       } else {
