@@ -69,6 +69,11 @@ export default function App() {
   const peerIdRef = useRef('');
   const isOrchestratingRef = useRef(false);
   const pendingSyncStateRef = useRef<GameState | null>(null);
+  // Tail of the orchestration chain. Every executeOrchestratedPlay call
+  // awaits the previous one so animations never run on top of each other
+  // (which used to make two cards appear at once if MOVE_ANNOUNCE messages
+  // arrived close together, e.g. after the tab was throttled).
+  const orchestrationTailRef = useRef<Promise<void>>(Promise.resolve());
   const clientRejoinRef = useRef<{ roomId: string; name: string; myPeerId: string } | null>(null);
   const wakeLockRef = useRef<any | null>(null);
   const hostInitializedRef = useRef(false);
@@ -498,33 +503,52 @@ export default function App() {
   const FLIP_SWEEP_MS = 900;
 
   /**
-   * Orchestrates a PLAY_CARD action with FLIP animations.
+   * Orchestrates a PLAY_CARD action with FLIP animations. Calls are
+   * serialized through orchestrationTailRef so the next animation only
+   * starts after the previous one (and any intervening trick-complete
+   * sweep) has fully settled.
    */
-  const executeOrchestratedPlay = async (payload: { playerIndex: number; cardId: string }) => {
-    isOrchestratingRef.current = true;
-    const isOpponent = payload.playerIndex !== myIndex;
-    if (isOpponent) {
-      flushSync(() => setMobileOpponentSource({
-        cardId: payload.cardId,
-        playerIndex: payload.playerIndex,
-      }));
-    }
-    try {
-      sounds.throwCard();
-      await flipTransition(() => {
-        setMobileOpponentSource(null);
-        dispatch({ type: 'PLAY_CARD', payload });
-      }, FLIP_FLY_MS);
-    } finally {
-      isOrchestratingRef.current = false;
-      const pending = pendingSyncStateRef.current;
-      if (pending) {
-        pendingSyncStateRef.current = null;
-        const me = pending.players.find(p => p.peerId === peerIdRef.current);
-        if (me) setMyIndex(me.id);
-        dispatch({ type: 'SET_GAME_STATE', payload: pending });
+  const executeOrchestratedPlay = (payload: { playerIndex: number; cardId: string }): Promise<void> => {
+    const task = async () => {
+      // If a previous play closed the trick, the trick-complete sequence
+      // (1.1 s reveal + sweep) is still running. Wait it out before
+      // dispatching another PLAY_CARD, otherwise the reducer would reject
+      // the move and we'd "snap" to the next state without animation.
+      while (
+        stateRef.current.gamePhase === 'PLAYING' &&
+        stateRef.current.currentTrick.length >= stateRef.current.numPlayers
+      ) {
+        await new Promise(r => setTimeout(r, 30));
       }
-    }
+      isOrchestratingRef.current = true;
+      const isOpponent = payload.playerIndex !== myIndex;
+      if (isOpponent) {
+        flushSync(() => setMobileOpponentSource({
+          cardId: payload.cardId,
+          playerIndex: payload.playerIndex,
+        }));
+      }
+      try {
+        sounds.throwCard();
+        await flipTransition(() => {
+          setMobileOpponentSource(null);
+          dispatch({ type: 'PLAY_CARD', payload });
+        }, FLIP_FLY_MS);
+      } finally {
+        isOrchestratingRef.current = false;
+        const pending = pendingSyncStateRef.current;
+        if (pending) {
+          pendingSyncStateRef.current = null;
+          const me = pending.players.find(p => p.peerId === peerIdRef.current);
+          if (me) setMyIndex(me.id);
+          dispatch({ type: 'SET_GAME_STATE', payload: pending });
+        }
+      }
+    };
+    const next = orchestrationTailRef.current.then(task);
+    // Swallow rejections so a single failed step doesn't poison the chain.
+    orchestrationTailRef.current = next.catch(() => {});
+    return next;
   };
 
   const publishMoveAnnounce = (payload: { playerIndex: number; cardId: string }) => {
