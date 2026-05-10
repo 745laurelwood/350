@@ -1,0 +1,5 @@
+{
+  "name": "350",
+  "description": "A polished implementation of 350, the 5/6-player partnership trick-taking card game with bidding and called partners.",
+  "requestFramePermissions": []
+}
