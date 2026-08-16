@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CardComponent } from '../components/CardComponent';
-import { LastMoveBanner, TrumpBadge } from '../components/panels';
+import { CardComponent } from '@laurelwood/card-class';
+import { LastMoveBanner } from '@laurelwood/card-class';
+import { TrumpBadge } from '../components/panels';
 import { FeltContent } from '../components/FeltContent';
 import { SharedOverlays } from '../components/SharedOverlays';
 import { useGame } from '../GameContext';

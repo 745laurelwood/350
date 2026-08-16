@@ -1,5 +1,5 @@
 import React from 'react';
-import { CardComponent } from './CardComponent';
+import { CardComponent } from '@laurelwood/card-class';
 import { useGame } from '../GameContext';
 import { compareSuitForHand } from '../constants';
 import { compareCardStrength } from '../rules';
