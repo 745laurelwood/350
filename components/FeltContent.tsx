@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { CardComponent } from './CardComponent';
+import { CardComponent } from '@laurelwood/card-class';
 import { BiddingControls } from './panels';
 import { useGame } from '../GameContext';
 import { Suit, Card } from '../types';

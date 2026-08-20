@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { GameState } from '../types';
 import { SavedSession, clearSession } from '../utils/session';
+import {
+  LobbyShell, LobbyPanel, LobbyNotice, ResumeSessionCard,
+  lobbyInputClass, lobbyInputStyle,
+} from '@laurelwood/card-class';
 import { EMPTY_SLOT_NAME } from '../constants';
 import { PlayerCount, VALID_PLAYER_COUNTS } from '../rules';
 import { Rulebook } from '../components/Rulebook';
@@ -27,13 +31,6 @@ interface LobbyProps {
   onSetNumPlayers: (numPlayers: PlayerCount) => void;
 }
 
-const inputCls = "w-full rounded-xl px-4 py-3 text-center focus:outline-none font-display font-semibold text-lg sm:text-xl transition-all";
-const inputStyle: React.CSSProperties = {
-  background: 'var(--bg-1)',
-  border: '1px solid var(--line)',
-  color: 'var(--fg)',
-};
-
 export const Lobby: React.FC<LobbyProps> = ({
   state, isMultiplayer, isHost, peerId, myIndex,
   playerName, setPlayerName,
@@ -47,55 +44,22 @@ export const Lobby: React.FC<LobbyProps> = ({
   if (showRulebook) return <Rulebook onClose={() => setShowRulebook(false)} />;
 
   return (
-    <div className="min-h-screen min-h-dvh royal-bg flex items-center justify-center relative overflow-hidden px-4 py-6" style={{ color: 'var(--fg)' }}>
+    <LobbyShell>
       {!isMultiplayer ? (
-        <div className="relative z-10 glass-panel p-6 sm:p-8 rounded-2xl max-w-md w-full text-center">
-          <h1 className="text-4xl sm:text-5xl font-display mb-1" style={{ color: 'var(--accent)' }}>350</h1>
-          <h2 className="text-xs sm:text-sm mb-7 tracking-[0.22em] uppercase" style={{ color: 'var(--dim)' }}>5/6-Player Trick-Taking</h2>
-          {joinError && (
-            <div
-              className="mb-5 p-3 rounded-xl text-left flex items-start gap-3"
-              style={{ background: 'rgba(232,146,154,0.08)', border: '1px solid rgba(232,146,154,0.35)' }}
-            >
-              <p className="text-sm flex-1" style={{ color: 'var(--red)' }}>{joinError}</p>
-              <button
-                onClick={clearJoinError}
-                className="text-xs px-2 py-0.5 rounded-md transition-all"
-                style={{ background: 'rgba(232,146,154,0.12)', color: 'var(--red)', border: '1px solid rgba(232,146,154,0.4)' }}
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
+        <LobbyPanel title="350" subtitle="5/6-Player Trick-Taking">
+          {joinError && <LobbyNotice message={joinError} onDismiss={clearJoinError} />}
           {savedSession && (
-            <div
-              className="mb-5 p-4 rounded-xl text-left"
-              style={{ background: 'rgba(111,176,255,0.06)', border: '1px solid var(--accent-soft)' }}
-            >
-              <p className="text-sm mb-1" style={{ color: 'var(--accent)' }}>Resume your previous session?</p>
-              <p className="text-xs mb-3 font-mono" style={{ color: 'var(--fg-soft)' }}>
-                {savedSession.role === 'host' ? 'Host' : 'Player'} · Room {savedSession.roomId} · {savedSession.playerName}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    if (savedSession.role === 'host') onCreateRoom(savedSession.state.numPlayers, savedSession);
-                    else onJoinRoom(savedSession);
-                    setSavedSession(null);
-                  }}
-                  className="btn-accent flex-1 py-2 rounded-lg font-semibold text-sm"
-                >
-                  Resume
-                </button>
-                <button
-                  onClick={() => { clearSession(); setSavedSession(null); }}
-                  className="px-4 py-2 rounded-lg text-sm transition-all"
-                  style={{ background: 'var(--bg-2)', color: 'var(--fg-soft)', border: '1px solid var(--line)' }}
-                >
-                  Discard
-                </button>
-              </div>
-            </div>
+            <ResumeSessionCard
+              role={savedSession.role}
+              roomId={savedSession.roomId}
+              playerName={savedSession.playerName}
+              onResume={() => {
+                if (savedSession.role === 'host') onCreateRoom(savedSession.state.numPlayers, savedSession);
+                else onJoinRoom(savedSession);
+                setSavedSession(null);
+              }}
+              onDiscard={() => { clearSession(); setSavedSession(null); }}
+            />
           )}
           <div className="space-y-3">
             <input
@@ -104,8 +68,8 @@ export const Lobby: React.FC<LobbyProps> = ({
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
               maxLength={15}
-              className={inputCls}
-              style={inputStyle}
+              className={lobbyInputClass}
+              style={lobbyInputStyle}
             />
 
             <div className="flex items-stretch p-0.5 rounded-full" style={{ background: 'var(--bg-1)', border: '1px solid var(--line)' }}>
@@ -141,7 +105,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                 value={joinId}
                 onChange={e => setJoinId(e.target.value.toUpperCase())}
                 className="flex-1 rounded-xl px-4 py-3 text-center focus:outline-none font-semibold transition-all"
-                style={inputStyle}
+                style={lobbyInputStyle}
               />
               <button
                 onClick={() => onJoinRoom()}
@@ -176,9 +140,9 @@ export const Lobby: React.FC<LobbyProps> = ({
               Rulebook
             </button>
           </div>
-        </div>
+        </LobbyPanel>
       ) : (
-        <div className="relative z-10 glass-panel p-6 sm:p-8 rounded-2xl max-w-xl w-full">
+        <LobbyPanel wide>
           <h2 className="text-2xl sm:text-3xl font-display text-center mb-5" style={{ color: 'var(--accent)' }}>Lobby</h2>
           {isHost && (
             <div className="mb-5 p-4 rounded-xl text-center" style={{ background: 'var(--bg-1)', border: '1px solid var(--line)' }}>
@@ -268,8 +232,8 @@ export const Lobby: React.FC<LobbyProps> = ({
           >
             Leave
           </button>
-        </div>
+        </LobbyPanel>
       )}
-    </div>
+    </LobbyShell>
   );
 };

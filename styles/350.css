@@ -1,0 +1,19 @@
+/* 350's deltas on top of @laurelwood/card-class. Imported after the package
+   stylesheet so these win: same specificity, later wins.
+
+   Everything here is a consequence of seating five or six players instead of
+   four. The opponent chips, their avatars and the hand overlap all tighten to
+   fit two or three players across the top of the table. */
+
+.m-hs-cell { padding: 4px 12px; }
+
+.m-hand > *:not(:first-child) { margin-left: -22px; }
+
+.m-opp .av   { width: 30px; height: 30px; font-size: 13px; }
+.m-opp .name { font-size: 11px; }
+.m-opp .held { font-size: 9px; }
+
+@media (max-height: 680px) {
+  .m-opp     { padding: 10px 3px 5px; }
+  .m-opp .av { width: 26px; height: 26px; font-size: 12px; }
+}

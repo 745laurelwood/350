@@ -1,23 +1,12 @@
-export enum Suit {
-  Spades = 'S',
-  Hearts = 'H',
-  Clubs = 'C',
-  Diamonds = 'D',
-}
+// The card vocabulary is shared across every game in the org, so it lives in
+// the skin package. Re-exported here so the rest of this codebase keeps
+// importing its types from one place.
+export { Suit } from '@laurelwood/card-class';
+export type { Card, ChatMessage } from '@laurelwood/card-class';
 
-export interface Card {
-  suit: Suit;
-  rank: number; // 2..10, 11 (J), 12 (Q), 13 (K), 14 (A). Ace high
-  id: string;
-}
+import type { Card, ChatMessage, Suit } from '@laurelwood/card-class';
 
-export interface ChatMessage {
-  id: string;
-  playerIndex: number;
-  name: string;
-  text: string;
-  ts: number;
-}
+
 
 export interface TrickPlay {
   playerIndex: number;
