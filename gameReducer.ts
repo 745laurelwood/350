@@ -8,7 +8,7 @@ import {
 import {
   PlayerCount,
   handSizeInitial, handSizeFull, numTricks,
-  MIN_BID, MAX_BID,
+  MIN_BID, MAX_BID, BID_STEP,
   partnerCardsForBid,
   SUIT_NAMES,
 } from './rules';
@@ -297,6 +297,9 @@ export const gameReducer = (state: GameState, action: Action): GameState => {
       if (state.biddingTurn !== playerIndex) return state;
       if (state.passedPlayers.includes(playerIndex)) return state;
       if (amount < MIN_BID || amount > MAX_BID) return state;
+      // Bids are offered in BID_STEP chips; an off-step amount would leave the
+      // auction between the levels the bid strip and the bots work from.
+      if (amount % BID_STEP !== 0) return state;
       if (state.currentBid != null && amount <= state.currentBid) return state;
 
       const bidder = state.players[playerIndex];
